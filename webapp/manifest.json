@@ -1,0 +1,115 @@
+{
+  "_version": "1.76.0",
+  "sap.app": {
+    "id": "accrual",
+    "type": "application",
+    "title": "Accrual Application",
+    "applicationVersion": {
+      "version": "1.0.0"
+    },
+    "description": "{{appDescription}}",
+    "resources": "resources.json",
+    "sourceTemplate": {
+      "id": "@sap/generator-fiori:basic",
+      "version": "1.16.4",
+      "toolsId": "5935da57-f19f-4438-bffc-dd6030a5e184"
+    }
+  },
+  "sap.ui": {
+    "technology": "UI5",
+    "deviceTypes": {
+      "desktop": true,
+      "tablet": true,
+      "phone": true
+    }
+  },
+  "sap.ui5": {
+    "flexEnabled": true,
+    "dependencies": {
+      "minUI5Version": "1.143.0",
+      "libs": {
+        "sap.m": {},
+        "sap.tnt": {},
+        "sap.ui.core": {}
+      }
+    },
+    "rootView": {
+      "viewName": "accrual.view.App",
+      "type": "XML",
+      "id": "App"
+    },
+    "routing": {
+      "config": {
+        "routerClass": "sap.m.routing.Router",
+        "viewType": "XML",
+        "viewPath": "accrual.view",
+        "controlId": "app",
+        "controlAggregation": "pages",
+        "transition": "slide",
+        "async": true
+      },
+      "routes": [
+        {
+          "name": "Dashboard",
+          "pattern": "",
+          "target": "Dashboard"
+        },
+        {
+          "name": "RequestPage",
+          "pattern": "request",
+          "target": "RequestPage"
+        },
+        {
+          "name": "Draft",
+          "pattern": "request/{instantId}",
+          "target": "RequestPage"
+        },
+        {
+          "name": "Copy",
+          "pattern": "Copy/{instantId}",
+          "target": "CopyFunction"
+        },
+        {
+          "name": "ViewDetails",
+          "pattern": "view/{instantId}",
+          "target": "ViewDetails"
+        },
+        {
+          "name": "WorkflowLogs",
+          "pattern": "logs/{instantId}",
+          "target": "WorkflowLogs"
+        }
+      ],
+      "targets": {
+        "Dashboard": {
+          "viewName": "Dashboard",
+          "viewLevel": 1
+        },
+        "RequestPage": {
+          "viewName": "RequestPage",
+          "viewLevel": 2
+        },
+        "Draft": {
+          "viewName": "Draft",
+          "viewLevel": 2
+        },
+          "CopyFunction": {
+          "viewName": "CopyFunction",
+          "viewLevel": 3
+        },
+        "ViewDetails": {
+          "viewName": "ViewDetails",
+          "viewLevel": 4
+        },
+        "WorkflowLogs": {
+          "viewName": "WorkflowLogs",
+          "viewLevel": 5
+        }
+      }
+    }
+  },
+  "sap.cloud": {
+    "public": true,
+    "service": "accrual"
+  }
+}

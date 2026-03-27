@@ -1,0 +1,535 @@
+<mvc:View controllerName="accrual.controller.RequestPage"
+    xmlns:mvc="sap.ui.core.mvc"
+    xmlns="sap.m"
+    xmlns:f="sap.ui.layout.form"
+    xmlns:core="sap.ui.core"
+    xmlns:l="sap.ui.layout"
+    xmlns:u="sap.ui.unified"
+    xmlns:html="http://www.w3.org/1999/xhtml">
+    
+    <Page id="page" title="Accrual/Reclass request form" showHeader="true" showFooter="true">
+        <customHeader>
+            <Bar id="_IDGenBar">
+                <contentMiddle>
+                    <Title id="_IDGenTitle" text="Accrual/Reclass request form" level="H1" />
+                </contentMiddle>
+            </Bar>
+        </customHeader>
+        <content>
+            <VBox id="_IDGenVBox" class="sapUiSmallMargin">
+                
+                <!-- Custom CSS for red asterisk -->
+<html:style>
+    .redAsterisk .sapMLabelRequired::after {
+        color: red !important;
+    }
+    .sapMTableTH .sapMText {
+        color: inherit;
+    }
+    .redRequired {
+        color: red !important;
+        font-weight: bold !important;
+    }
+    /* Ensure red asterisk is visible in table headers */
+    .sapMColumnHeader .redRequired {
+        color: red !important;
+        font-weight: bold !important;
+    }
+</html:style>
+                
+                <!-- Header Section -->
+                <f:SimpleForm id="headerForm"
+                    editable="true"
+                    layout="ResponsiveGridLayout"
+                    labelSpanXL="4"
+                    labelSpanL="4"
+                    labelSpanM="4"
+                    labelSpanS="12"
+                    adjustLabelSpan="false"
+                    emptySpanXL="0"
+                    emptySpanL="0"
+                    emptySpanM="0"
+                    emptySpanS="0"
+                    columnsXL="2"
+                    columnsL="2"
+                    columnsM="2"
+                    singleContainerFullSize="false">
+                    
+                    <f:content>
+                        <!-- Left Column -->
+                        <Label id="_IDGenLabel" text="Affiliate" required="true" class="redAsterisk" />
+                        <ComboBox id="affiliateSelect"
+                            selectedKey="{/affiliate}"
+                            required="true"
+                            change=".onAffiliateChange"
+                            selectionChange=".onAffiliateChange"
+                            showSecondaryValues="false"
+                            filterSecondaryValues="false"
+                            items="{/companyCodes}">
+                            <core:Item id="_IDGenItem19" key="" text="Select Affiliate..." />
+                            <core:Item id="_IDGenItem20" key="{CompanyCodeName}" text="{CompanyCodeName}" />
+                        </ComboBox>
+                        
+                        <Label id="_IDGenLabel1" text="Name your accrual" required="true" class="redAsterisk" />
+                        <Input id="nameAccrualInput"
+                            value="{/nameAccrual}"
+                            placeholder="Enter accrual name"
+                            required="true"
+                            change=".onFieldChange" />
+                        
+                        <Label id="_IDGenLabel2" text="Accrual cut-off date (yyyymmdd)" required="true" class="redAsterisk" />
+                        <DatePicker id="cutoffDatePicker"
+                            value="{/cutoffDate}"
+                            displayFormat="yyyyMMdd"
+                            valueFormat="yyyyMMdd"
+                            placeholder="yyyymmdd (month-end date)"
+                            required="true"
+                            change=".onFieldChange" />
+                        
+                        <!-- Right Column -->
+                        <Label id="_IDGenLabel3" text="Company code" required="true" class="redAsterisk" />
+                        <Input id="companyCodeInput"
+                            value="{/companyCode}"
+                            placeholder="Auto-populated based on affiliate"
+                            required="true"
+                            editable="false"
+                            enabled="true" />
+                        
+                        <Label id="_IDGenLabel4" text="Requested by" required="true" class="redAsterisk" />
+                        <Input id="requestedByInput"
+                            value="{/requestedBy}"
+                            placeholder="Enter requester email"
+                            required="true"
+                            change=".onFieldChange" />
+                        
+                        <Label id="_IDGenLabel5" text="To be Approved by" required="true" class="redAsterisk" />
+                        <Input id="approvedByInput"
+                            value="{/approvedBy}"
+                            placeholder="Enter approver email"
+                            required="true"
+                            change=".onFieldChange" />
+                        
+                        <Label id="_IDGenLabel6" text="Type of request" required="true" class="redAsterisk" />
+                        <Select id="requestTypeSelect"
+                            selectedKey="{/requestType}"
+                            required="true"
+                            change=".onRequestTypeChange">
+                            <items>
+                                <core:Item id="_IDGenItem" key="" text="Select..." />
+                                <core:Item id="_IDGenItem1" key="Accrual" text="Accrual" />
+                                <core:Item id="_IDGenItem2" key="Reclass" text="Reclass" />
+                            </items>
+                        </Select>
+                        
+                        <!-- New Type of Party Field -->
+                        <Label id="typeOfPartyLabel" text="Type of Party" required="true" class="redAsterisk" />
+                        <Select id="typeOfPartySelect"
+                            selectedKey="{/typeOfParty}"
+                            required="true"
+                            change=".onTypeOfPartyChange">
+                            <items>
+                                <core:Item id="partyItem0" key="" text="Select..." />
+                                <core:Item id="partyItem1" key="Supplier" text="Supplier" />
+                                <core:Item id="partyItem2" key="Customer" text="Customer" />
+                            </items>
+                        </Select>
+                    </f:content>
+                </f:SimpleForm>
+                
+                <!-- Table Section with Scroll Container -->
+                <VBox id="_IDGenVBox1" class="sapUiSmallMarginTop">
+                    <Toolbar id="_IDGenToolbar">
+                        <Title id="_IDGenTitle1" text="Line Items" level="H2" />
+                        <ToolbarSpacer id="_IDGenToolbarSpacer" />
+                        <Button id="_IDGenButton1" 
+                            text="Delete Selected" 
+                            icon="sap-icon://delete" 
+                            type="Reject"
+                            press=".onDeleteSelected"
+                            enabled="{= ${/selectedItemsCount} > 0}" />
+                        <Button id="_IDGenButton2" 
+                            text="Add Row" 
+                            icon="sap-icon://add" 
+                            type="Emphasized"
+                            press=".onAddRow" />
+                    </Toolbar>
+                    
+                    <ScrollContainer id="_IDGenScrollContainer" 
+                        horizontal="true" 
+                        vertical="false"
+                        height="auto"
+                        class="sapUiSmallMarginTop">
+                        
+                        <Table id="itemsTable"
+                            items="{/items}"
+                            mode="MultiSelect"
+                            selectionChange=".onSelectionChange"
+                            growing="true"
+                            growingThreshold="20">
+                            
+                            <columns>
+                                <Column id="_IDGenColumn" width="13rem">
+                                    <HBox id="_IDGenHBox6">
+                                        <Text id="_IDGenText16" text="Supplier/Customer " />
+                                        <Text id="_IDGenText23" text="*" class="redRequired" />
+                                    </HBox>
+                                </Column>
+                                <Column id="_IDGenColumn6" width="11rem">
+                                    <Text id="_IDGenText6" text="Purchase Order Number" />
+                                </Column>
+                                <Column id="_IDGenColumn6b" width="13rem">
+                                    <Text id="_IDGenText6b" text="Purchase Order Line Item" />
+                                </Column>
+                                <Column id="_IDGenColumn1" width="13rem">
+                                    <HBox id="_IDGenHBox">
+                                        <Text id="_IDGenText1" text="Description " />
+                                        <Text id="_IDGenText17" text="*" class="redRequired" />
+                                    </HBox>
+                                </Column>
+                                <Column id="_IDGenColumn2" width="9rem">
+                                    <HBox id="_IDGenHBox1">
+                                        <Text id="_IDGenText2" text="Currency " />
+                                        <Text id="_IDGenText18" text="*" class="redRequired" />
+                                    </HBox>
+                                </Column>
+                                <Column id="_IDGenColumn3" width="10rem">
+                                    <HBox id="_IDGenHBox2">
+                                        <Text id="_IDGenText3" text="Exclude Tax " />
+                                        <Text id="_IDGenText19" text="*" class="redRequired" />
+                                        <core:Icon id="excludeTaxInfo" 
+                                            src="sap-icon://hint" 
+                                            color="#0854A0"
+                                            class="sapUiTinyMarginBegin"
+                                            tooltip="The value should reflect the portion of goods/services received by month end and should exclude GST/VAT" />
+                                    </HBox>
+                                </Column>
+                                <Column id="_IDGenColumn4" width="11rem">
+                                    <HBox id="_IDGenHBox3">
+                                        <Text id="_IDGenText4" text="GL Account Code " />
+                                        <Text id="_IDGenText20" text="*" class="redRequired" />
+                                    </HBox>
+                                </Column>
+                                <Column id="_IDGenColumn5" width="10rem">
+                                    <HBox id="_IDGenHBox4">
+                                        <Text id="_IDGenText5" text="Credit/Debit " />
+                                        <Text id="_IDGenText21" text="*" class="redRequired" />
+                                        <core:Icon id="creditDebitInfo" 
+                                            src="sap-icon://hint" 
+                                            color="#0854A0"
+                                            class="sapUiTinyMarginBegin"
+                                            tooltip="Debit means to accrue cost&#10;Credit means to reduce cost or accrue income" />
+                                    </HBox>
+                                </Column>
+                                <Column id="_IDGenColumn7" width="9rem">
+                                    <Text id="_IDGenText7" text="Cost Centre" />
+                                </Column>
+                                <Column id="_IDGenColumn8" width="11rem">
+                                    <Text id="_IDGenText8" text="Internal Order" />
+                                </Column>
+                                <Column id="_IDGenColumn9" width="9rem">
+                                    <Text id="_IDGenText9" text="WBS" />
+                                </Column>
+                                <Column id="_IDGenColumn10" width="11rem">
+                                    <Text id="_IDGenText10" text="Trading Partner" />
+                                </Column>
+                                <Column id="_IDGenColumn11" width="11rem">
+                                    <Text id="_IDGenText11" text="Sales Order Number" />
+                                </Column>
+                                <Column id="_IDGenColumn12" width="11rem">
+                                    <Text id="_IDGenText12" text="Sales Order Item Number" />
+                                </Column>
+                                <Column id="_IDGenColumn160" width="11rem">
+                                    <Text id="_IDGenText160" text="Segment-Product" />
+                                </Column>
+                                <Column id="_IDGenColumn13" width="11rem">
+                                    <Text id="_IDGenText13" text="Segment-Ship to Party" />
+                                </Column>
+                                <Column id="_IDGenColumn14" width="11rem">
+                                    <Text id="_IDGenText14" text="Segment-Sold to Party" />
+                                </Column>
+                                <Column id="_IDGenColumn15" width="5rem" hAlign="Center">
+                                    <Text id="_IDGenText15" text="Action" />
+                                </Column>
+                            </columns>
+                            
+                            <items>
+                                <ColumnListItem id="_IDGenColumnListItem">
+                                    <cells>
+                                        <!-- Supplier/Customer -->
+                                        <Input id="_IDGenInput" 
+                                            value="{supplier}"
+                                            placeholder="Enter supplier/customer"
+                                            required="true"
+                                            valueState="{supplierState}"
+                                            valueStateText="{supplierStateText}"
+                                            showSuggestion="true"
+                                            suggest=".onSupplierSuggest"
+                                            suggestionItemSelected=".onSupplierSuggestionSelected"
+                                            change=".onTableFieldChange"
+                                            maxSuggestionWidth="400px"
+                                            startSuggestion="1">
+                                            <suggestionItems>
+                                                <!-- Items will be populated dynamically -->
+                                            </suggestionItems>
+                                        </Input>
+
+<!-- Purchase Order Number - Dynamic based on Type of Party -->
+<VBox id="_IDGenVBox8">
+    <ComboBox id="poNumberSelect" 
+        selectedKey="{poNumber}"
+        change=".onPONumberChange"
+        loadItems=".onPONumberOpen"
+        visible="{= ${/typeOfParty} === 'Supplier'}"
+        items="{purchaseOrders}">
+        <core:Item id="_IDGenItem5" key="" text="Select PO..." />
+        <core:Item id="_IDGenItem6" key="{PurchaseOrder}" text="{PurchaseOrder}" />
+    </ComboBox>
+
+    <Input id="poNumberInput" 
+        value="{poNumber}"
+        placeholder="PO Number"
+        visible="{= ${/typeOfParty} !== 'Supplier'}" />
+</VBox>
+
+<!-- Purchase Order Line Item - Dynamic based on Type of Party -->
+<!-- Purchase Order Line Item - Text Input -->
+<Input id="poLineItemInput" 
+    value="{poLineItem}"
+    placeholder="Line Item"
+    change=".onTableFieldChange" />
+                                        
+                                        <!-- Description -->
+                                        <Input id="_IDGenInput1" 
+                                            value="{description}"
+                                            placeholder="Enter description"
+                                            required="true"
+                                            valueState="{descriptionState}"
+                                            valueStateText="{descriptionStateText}"
+                                            change=".onTableFieldChange" />
+                                        
+
+<!-- Currency -->
+<!-- Currency -->
+<ComboBox id="currencySelect"
+    selectedKey="{currency}"
+    required="true"
+    valueState="{currencyState}"
+    valueStateText="{currencyStateText}"
+    placeholder="Select Currency..."
+    change=".onCurrencyChange"
+    items="{
+        path: '/currencies',
+        length: 10000
+    }">
+    <core:ListItem id="_IDGenListItem1"
+        key="{CurrencyISOCode}"
+        text="{CurrencyISOCode}" />
+</ComboBox>
+
+<!-- Exclude Tax -->
+<!-- Exclude Tax -->
+<Input id="_IDGenInput2" 
+    value="{excludeTax}"
+    placeholder="Amount"
+    required="true"
+    valueState="{excludeTaxState}"
+    valueStateText="{excludeTaxStateText}"
+    type="Number"
+    change="onExcludeTaxChange" />
+                                        
+                                        <!-- GL Account -->
+                                        <Input id="_IDGenInput3" 
+                                            value="{glAccount}"
+                                            placeholder="GL Code"
+                                            required="true"
+                                            valueState="{glAccountState}"
+                                            valueStateText="{glAccountStateText}"
+                                            change=".onTableFieldChange"
+                                            showSuggestion="true"
+                                            suggest=".onGLAccountSuggest"
+                                            maxSuggestionWidth="400px"
+                                            startSuggestion="0">
+                                            <suggestionItems>
+                                                <core:Item id="_IDGenItemGL" key="{/glAccounts>GLAccount}" text="{/glAccounts>displayText}" />
+                                            </suggestionItems>
+                                        </Input>
+                                        
+                                        <!-- Credit/Debit -->
+                                        <Select id="_IDGenSelect1" 
+                                            selectedKey="{creditDebit}"
+                                            required="true"
+                                            valueState="{creditDebitState}"
+                                            valueStateText="{creditDebitStateText}"
+                                            change=".onTableFieldChange">
+                                            <items>
+                                                <core:Item id="_IDGenItem11" key="" text="Select..." />
+                                                <core:Item id="_IDGenItem12" key="Debit" text="Debit" />
+                                                <core:Item id="_IDGenItem13" key="Credit" text="Credit" />
+                                            </items>
+                                        </Select>
+                                        
+
+                                        
+                                        <!-- Cost Centre - Dropdown -->
+<ComboBox id="costCentreSelect" 
+    selectedKey="{costCentre}"
+    change="onCostCentreChange"
+    loadItems=".onCostCentreOpen"
+    placeholder="Select Cost Centre..."
+    width="100%"
+    items="{
+        path: '/costCentres',
+        length: 10000
+    }">
+    <core:ListItem id="_IDGenListItem" 
+        key="{CostCenter}" 
+        text="{CostCenter}" />
+</ComboBox>
+                                        <!-- Internal Order - NEW DROPDOWN -->
+                                        <ComboBox id="internalOrderSelect" 
+                                            selectedKey="{internalOrder}"
+                                            change=".onTableFieldChange"
+                                            loadItems=".onInternalOrderOpen"
+                                            items="{/internalOrders}">
+                                            <core:Item id="_IDGenItemIO0" key="" text="Select Internal Order..." />
+                                            <core:Item id="_IDGenItemIO" key="{OrderNumber}" text="{displayText}" />
+                                        </ComboBox>
+                                        
+                                        <!-- WBS -->
+                                        <Input id="_IDGenInput7" 
+                                            value="{wbs}"
+                                            placeholder="WBS" />
+                                        
+                                        <!-- Trading Partner -->
+                                        <Input id="_IDGenInput8" 
+                                            value="{tradingPartner}"
+                                            placeholder="Trading Partner" />
+                                        
+                                        <!-- Sales Order Number - NEW COMBOBOX WITH SEARCH -->
+                                        <ComboBox id="salesOrderSelect" 
+                                            selectedKey="{salesOrder}"
+                                            change=".onSalesOrderChange"
+                                            loadItems=".onSalesOrderOpen"
+                                            items="{/salesOrders}">
+                                            <core:Item id="_IDGenItemSO0" key="" text="Select Sales Order..." />
+                                            <core:Item id="_IDGenItemSO" key="{SalesOrder}" text="{SalesOrder}" />
+                                        </ComboBox>
+                                        
+                                        <!-- Sales Order Item Number - AUTO-POPULATED INPUT -->
+                                        <Input id="salesOrderItemInput" 
+                                            value="{salesOrderItem}"
+                                            placeholder="Item Number"
+                                            editable="false"
+                                            enabled="true" />
+
+                                        <!-- Segment-Product - AUTO-POPULATED INPUT -->
+                                        <Input id="segmentProductInput" 
+                                            value="{SegmentProduct}"
+                                            placeholder="Segment-Product"
+                                            editable="false"
+                                            enabled="true" />
+                                        
+                                        <!-- Segment-Ship to Party - AUTO-POPULATED INPUT -->
+                                        <Input id="segmentShipInput" 
+                                            value="{segmentShip}"
+                                            placeholder="Ship to Party"
+                                            editable="false"
+                                            enabled="true" />
+                                        
+                                        <!-- Segment-Sold to Party - AUTO-POPULATED INPUT -->
+                                        <Input id="segmentSoldInput" 
+                                            value="{segmentSold}"
+                                            placeholder="Sold to Party"
+                                            editable="false"
+                                            enabled="true" />
+                                        
+                                        <!-- Delete Button -->
+                                        <Button id="_IDGenButton3" 
+                                            icon="sap-icon://delete"
+                                            type="Reject"
+                                            press=".onDeleteRow" />
+                                    </cells>
+                                </ColumnListItem>
+                            </items>
+                        </Table>
+                    </ScrollContainer>
+                    
+                    <HBox id="_IDGenHBox5" class="sapUiTinyMarginTop sapUiSmallMarginBegin">
+                        <Text id="_IDGenText22" text="* indicates mandatory fields" />
+                    </HBox>
+                </VBox>
+                <!-- Document Attachments Section -->
+<!-- Document Attachments Section -->
+<Panel id="dmsPanel" headerText="Supporting Documents" class="sapUiSmallMarginTop">
+    <content>
+        <VBox id="dmsVBox" class="sapUiSmallMargin">
+        <Toolbar id="dmsToolbar">
+            <ToolbarSpacer id="dmsToolbarSpacer" />
+            <u:FileUploader
+                id="dmsFileUploader"
+                buttonText="Upload"
+                buttonOnly="true"
+                iconOnly="false"
+                multiple="false"
+                change=".onDMSFileSelected"
+                style="Emphasized" />
+        </Toolbar>
+            <Table id="dmsDocumentsTable"
+                items="{/dmsDocuments}"
+                noDataText="No documents uploaded"
+                class="sapUiSmallMarginTop">
+                <columns>
+                    <Column id="dmsColFileName" width="40%"><Text id="dmsTextFileName" text="File Name" /></Column>
+                    <Column id="dmsColType" width="15%"><Text id="dmsTextType" text="Type" /></Column>
+                    <Column id="dmsColSize" width="20%"><Text id="dmsTextSize" text="Size" /></Column>
+                    <Column id="dmsColDate" width="15%"><Text id="dmsTextDate" text="Uploaded On" /></Column>
+                    <Column id="dmsColActions" width="10%" hAlign="Center"><Text id="dmsTextActions" text="Actions" /></Column>
+                </columns>
+                <items>
+                    <ColumnListItem id="dmsDocItem">
+                        <cells>
+                            <Text id="dmsDocFileName" text="{fileName}" />
+                            <Text id="dmsDocFileType" text="{fileType}" />
+                            <Text id="dmsDocFileSize" text="{fileSize}" />
+                            <Text id="dmsDocUploadedOn" text="{uploadedOn}" />
+                            <HBox id="dmsDocActions" justifyContent="Center">
+                                <Button id="dmsDownloadBtn"
+                                    icon="sap-icon://download"
+                                    type="Transparent"
+                                    tooltip="Download"
+                                    press=".onDMSDownload" />
+                                <Button id="dmsDeleteBtn"
+                                    icon="sap-icon://delete"
+                                    type="Transparent"
+                                    tooltip="Delete"
+                                    press=".onDMSDelete" />
+                            </HBox>
+                        </cells>
+                    </ColumnListItem>
+                </items>
+            </Table>
+        </VBox>
+    </content>
+</Panel>            
+</VBox>
+        </content>
+        
+        <!-- Fixed Footer with Action Buttons -->
+        <footer>
+            <Toolbar id="footerToolbar">
+                <ToolbarSpacer id="footerToolbarSpacer" />
+                <Button id="saveAsDraftButton" 
+                    text="Save as Draft" 
+                    type="Default"
+                    visible= "true"
+                    icon="sap-icon://save"
+                    press=".onSaveAsDraft" />
+                <Button id="submitButton" 
+                    text="Submit" 
+                    type="Emphasized"
+                    icon="sap-icon://accept"
+                    press=".onSubmit" />
+            </Toolbar>
+        </footer>
+    </Page>
+</mvc:View>

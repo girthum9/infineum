@@ -1,0 +1,309 @@
+<mvc:View controllerName="accrual.controller.CopyFunction"
+	xmlns:mvc="sap.ui.core.mvc"
+	xmlns="sap.m"
+	xmlns:f="sap.ui.layout.form"
+	xmlns:core="sap.ui.core"
+	xmlns:l="sap.ui.layout"
+	xmlns:u="sap.ui.unified"
+	xmlns:html="http://www.w3.org/1999/xhtml">
+	<Page id="Copy_page" title="Accrual/Reclass request form" showHeader="true" showFooter="true">
+		<customHeader>
+			<Bar id="Copy_IDGenBar">
+				<contentMiddle>
+					<Title id="Copy_IDGenTitle" text="Accrual/Reclass request form" level="H1" />
+				</contentMiddle>
+			</Bar>
+		</customHeader>
+		<content>
+			<VBox id="Copy_IDGenVBox" class="sapUiSmallMargin">
+				<!-- Custom CSS for red asterisk -->
+				<html:style> .redAsterisk .sapMLabelRequired::after { color: red !important; } .sapMTableTH .sapMText { color: inherit; } .redRequired { color: red !important; font-weight: bold !important; } /* Ensure red asterisk is visible in table headers */ .sapMColumnHeader .redRequired { color: red !important; font-weight: bold !important; } </html:style>
+				<!-- Header Section -->
+				<f:SimpleForm id="Copy_headerForm" editable="true" layout="ResponsiveGridLayout" labelSpanXL="4" labelSpanL="4" labelSpanM="4" labelSpanS="12" adjustLabelSpan="false" emptySpanXL="0" emptySpanL="0" emptySpanM="0" emptySpanS="0" columnsXL="2" columnsL="2" columnsM="2" singleContainerFullSize="false">
+					<f:content>
+						<!-- Left Column -->
+						<Label id="Copy_IDGenLabel" text="Affiliate" required="true" class="redAsterisk" />
+						<ComboBox id="Copy_affiliateSelect" selectedKey="{/affiliate}" required="true" change=".onAffiliateChange" selectionChange=".onAffiliateChange" showSecondaryValues="false" filterSecondaryValues="false" items="{/companyCodes}">
+							<core:Item id="Copy_IDGenItem19" key="" text="Select Affiliate..." />
+							<core:Item id="Copy_IDGenItem20" key="{CompanyCodeName}" text="{CompanyCodeName}" />
+						</ComboBox>
+						<Label id="Copy_IDGenLabel1" text="Name your accrual" required="true" class="redAsterisk" />
+						<Input id="Copy_nameAccrualInput" value="{/nameAccrual}" placeholder="Enter accrual name" required="true" change=".onFieldChange" />
+						<Label id="Copy_IDGenLabel2" text="Accrual cut-off date (yyyymmdd)" required="true" class="redAsterisk" />
+						<DatePicker id="Copy_cutoffDatePicker" value="{/cutoffDate}" displayFormat="yyyyMMdd" valueFormat="yyyyMMdd" placeholder="yyyymmdd (month-end date)" required="true" change=".onFieldChange" />
+						<!-- Right Column -->
+						<Label id="Copy_IDGenLabel3" text="Company code" required="true" class="redAsterisk" />
+						<Input id="Copy_companyCodeInput" value="{/companyCode}" placeholder="Auto-populated based on affiliate" required="true" editable="false" enabled="true" />
+						<Label id="Copy_IDGenLabel4" text="Requested by" required="true" class="redAsterisk" />
+						<Input id="Copy_requestedByInput" value="{/requestedBy}" placeholder="Enter requester email" required="true" change=".onFieldChange" />
+						<Label id="Copy_IDGenLabel5" text="To be Approved by" required="true" class="redAsterisk" />
+						<Input id="Copy_approvedByInput" value="{/approvedBy}" placeholder="Enter approver email" required="true" change=".onFieldChange" />
+						<Label id="Copy_IDGenLabel6" text="Type of request" required="true" class="redAsterisk" />
+						<Select id="Copy_requestTypeSelect" selectedKey="{/requestType}" required="true" change=".onRequestTypeChange">
+							<items>
+								<core:Item id="Copy_IDGenItem" key="" text="Select..." />
+								<core:Item id="Copy_IDGenItem1" key="Accrual" text="Accrual" />
+								<core:Item id="Copy_IDGenItem2" key="Reclass" text="Reclass" />
+							</items>
+						</Select>
+						<!-- New Type of Party Field -->
+						<Label id="Copy_typeOfPartyLabel" text="Type of Party" required="true" class="redAsterisk" />
+						<Select id="Copy_typeOfPartySelect" selectedKey="{/typeOfParty}" required="true" change=".onTypeOfPartyChange">
+							<items>
+								<core:Item id="Copy_partyItem0" key="" text="Select..." />
+								<core:Item id="Copy_partyItem1" key="Supplier" text="Supplier" />
+								<core:Item id="Copy_partyItem2" key="Customer" text="Customer" />
+							</items>
+						</Select>
+					</f:content>
+				</f:SimpleForm>
+				<!-- Table Section with Scroll Container -->
+				<VBox id="Copy_IDGenVBox1" class="sapUiSmallMarginTop">
+					<Toolbar id="Copy_IDGenToolbar">
+						<Title id="Copy_IDGenTitle1" text="Line Items" level="H2" />
+						<ToolbarSpacer id="Copy_IDGenToolbarSpacer" />
+						<Button id="Copy_IDGenButton1" text="Delete Selected" icon="sap-icon://delete" type="Reject" press=".onDeleteSelected" enabled="{= ${/selectedItemsCount} > 0}" />
+						<Button id="Copy_IDGenButton2" text="Add Row" icon="sap-icon://add" type="Emphasized" press=".onAddRow" />
+					</Toolbar>
+					<ScrollContainer id="Copy_IDGenScrollContainer" horizontal="true" vertical="false" height="auto" class="sapUiSmallMarginTop">
+						<Table id="Copy_itemsTable" items="{/items}" mode="MultiSelect" selectionChange=".onSelectionChange" growing="true" growingThreshold="20">
+							<columns>
+								<Column id="Copy_IDGenColumn" width="13rem">
+									<HBox id="Copy_IDGenHBox6">
+										<Text id="Copy_IDGenText16" text="Supplier/Customer " />
+										<Text id="Copy_IDGenText23" text="*" class="redRequired" />
+									</HBox>
+								</Column>
+								<Column id="Copy_IDGenColumn6" width="11rem">
+									<Text id="Copy_IDGenText6" text="Purchase Order Number" />
+								</Column>
+								<Column id="Copy_IDGenColumn6b" width="13rem">
+									<Text id="Copy_IDGenText6b" text="Purchase Order Line Item" />
+								</Column>
+								<Column id="Copy_IDGenColumn1" width="13rem">
+									<HBox id="Copy_IDGenHBox">
+										<Text id="Copy_IDGenText1" text="Description " />
+										<Text id="Copy_IDGenText17" text="*" class="redRequired" />
+									</HBox>
+								</Column>
+								<Column id="Copy_IDGenColumn2" width="9rem">
+									<HBox id="Copy_IDGenHBox1">
+										<Text id="Copy_IDGenText2" text="Currency " />
+										<Text id="Copy_IDGenText18" text="*" class="redRequired" />
+									</HBox>
+								</Column>
+								<Column id="Copy_IDGenColumn3" width="10rem">
+									<HBox id="Copy_IDGenHBox2">
+										<Text id="Copy_IDGenText3" text="Exclude Tax " />
+										<Text id="Copy_IDGenText19" text="*" class="redRequired" />
+										<core:Icon id="Copy_excludeTaxInfo" src="sap-icon://hint" color="#0854A0" class="sapUiTinyMarginBegin" tooltip="The value should reflect the portion of goods/services received by month end and should exclude GST/VAT" />
+									</HBox>
+								</Column>
+								<Column id="Copy_IDGenColumn4" width="11rem">
+									<HBox id="Copy_IDGenHBox3">
+										<Text id="Copy_IDGenText4" text="GL Account Code " />
+										<Text id="Copy_IDGenText20" text="*" class="redRequired" />
+									</HBox>
+								</Column>
+								<Column id="Copy_IDGenColumn5" width="10rem">
+									<HBox id="Copy_IDGenHBox4">
+										<Text id="Copy_IDGenText5" text="Credit/Debit " />
+										<Text id="Copy_IDGenText21" text="*" class="redRequired" />
+										<core:Icon id="Copy_creditDebitInfo" src="sap-icon://hint" color="#0854A0" class="sapUiTinyMarginBegin" tooltip="Debit means to accrue cost&#10;Credit means to reduce cost or accrue income" />
+									</HBox>
+								</Column>
+								<Column id="Copy_IDGenColumn7" width="9rem">
+									<Text id="Copy_IDGenText7" text="Cost Centre" />
+								</Column>
+								<Column id="Copy_IDGenColumn8" width="11rem">
+									<Text id="Copy_IDGenText8" text="Internal Order" />
+								</Column>
+								<Column id="Copy_IDGenColumn9" width="9rem">
+									<Text id="Copy_IDGenText9" text="WBS" />
+								</Column>
+								<Column id="Copy_IDGenColumn10" width="11rem">
+									<Text id="Copy_IDGenText10" text="Trading Partner" />
+								</Column>
+								<Column id="Copy_IDGenColumn11" width="11rem">
+									<Text id="Copy_IDGenText11" text="Sales Order Number" />
+								</Column>
+								<Column id="Copy_IDGenColumn12" width="11rem">
+									<Text id="Copy_IDGenText12" text="Sales Order Item Number" />
+								</Column>
+								<Column id="Copy_IDGenColumn160" width="11rem">
+									<Text id="Copy_IDGenText160" text="Segment-Product" />
+								</Column>
+								<Column id="Copy_IDGenColumn13" width="11rem">
+									<Text id="Copy_IDGenText13" text="Segment-Ship to Party" />
+								</Column>
+								<Column id="Copy_IDGenColumn14" width="11rem">
+									<Text id="Copy_IDGenText14" text="Segment-Sold to Party" />
+								</Column>
+								<Column id="Copy_IDGenColumn15" width="5rem" hAlign="Center">
+									<Text id="Copy_IDGenText15" text="Action" />
+								</Column>
+							</columns>
+							<items>
+								<ColumnListItem id="Copy_IDGenColumnListItem">
+									<cells>
+										<!-- Supplier/Customer -->
+										<Input id="Copy_IDGenInput" value="{supplier}" placeholder="Enter supplier/customer" required="true" valueState="{supplierState}" valueStateText="{supplierStateText}" showSuggestion="true" suggest=".onSupplierSuggest" suggestionItemSelected=".onSupplierSuggestionSelected" change=".onTableFieldChange" maxSuggestionWidth="400px" startSuggestion="1">
+											<suggestionItems>
+												<!-- Items will be populated dynamically -->
+											</suggestionItems>
+										</Input>
+										<!-- Purchase Order Number - Dynamic based on Type of Party -->
+										<VBox id="Copy_IDGenVBox8">
+											<ComboBox id="Copy_poNumberSelect" selectedKey="{poNumber}" change=".onPONumberChange" loadItems=".onPONumberOpen" visible="{= ${/typeOfParty} === 'Supplier'}" items="{purchaseOrders}">
+												<core:Item id="Copy_IDGenItem5" key="" text="Select PO..." />
+												<core:Item id="Copy_IDGenItem6" key="{PurchaseOrder}" text="{PurchaseOrder}" />
+											</ComboBox>
+											<Input id="Copy_poNumberInput" value="{poNumber}" placeholder="PO Number" visible="{= ${/typeOfParty} !== 'Supplier'}" />
+										</VBox>
+										<!-- Purchase Order Line Item - Dynamic based on Type of Party -->
+										<!-- Purchase Order Line Item - Text Input -->
+										<Input id="Copy_poLineItemInput" value="{poLineItem}" placeholder="Line Item" change=".onTableFieldChange" />
+										<!-- Description -->
+										<Input id="Copy_IDGenInput1" value="{description}" placeholder="Enter description" required="true" valueState="{descriptionState}" valueStateText="{descriptionStateText}" change=".onTableFieldChange" />
+										<!-- Currency -->
+			<Input id="Copy_currencyInput"
+    value="{currency}"
+    required="true"
+    valueState="{currencyState}"
+    valueStateText="{currencyStateText}"
+    editable="false"
+    enabled="true" />
+										<!-- Exclude Tax -->
+										<Input id="Copy_IDGenInput2" value="{excludeTax}" placeholder="Amount" required="true" valueState="{excludeTaxState}" valueStateText="{excludeTaxStateText}" type="Number" change=".onTableFieldChange" />
+										<!-- GL Account -->
+										<Input id="Copy_IDGenInput3" value="{glAccount}" placeholder="GL Code" required="true" valueState="{glAccountState}" valueStateText="{glAccountStateText}" change=".onTableFieldChange" showSuggestion="true" suggest=".onGLAccountSuggest" maxSuggestionWidth="400px" startSuggestion="0">
+											<suggestionItems>
+												<core:Item id="Copy_IDGenItemGL" key="{/glAccounts>GLAccount}" text="{/glAccounts>displayText}" />
+											</suggestionItems>
+										</Input>
+										<!-- Credit/Debit -->
+										<Select id="Copy_IDGenSelect1" selectedKey="{creditDebit}" required="true" valueState="{creditDebitState}" valueStateText="{creditDebitStateText}" change=".onTableFieldChange">
+											<items>
+												<core:Item id="Copy_IDGenItem11" key="" text="Select..." />
+												<core:Item id="Copy_IDGenItem12" key="Debit" text="Debit" />
+												<core:Item id="Copy_IDGenItem13" key="Credit" text="Credit" />
+											</items>
+										</Select>
+										<!-- Cost Centre - Dropdown -->
+										<ComboBox id="Copy_costCentreSelect" selectedKey="{costCentre}" change=".onTableFieldChange" loadItems=".onCostCentreOpen" placeholder="Select Cost Centre..." width="100%" items="{ path: '/costCentres', length: 10000 }">
+											<core:ListItem id="Copy_IDGenListItem" key="{CostCenter}" text="{CostCenter}" />
+										</ComboBox>
+										<!-- Internal Order - NEW DROPDOWN -->
+										<ComboBox id="Copy_internalOrderSelect" selectedKey="{internalOrder}" change=".onTableFieldChange" loadItems=".onInternalOrderOpen" items="{/internalOrders}">
+											<core:Item id="Copy_IDGenItemIO0" key="" text="Select Internal Order..." />
+											<core:Item id="Copy_IDGenItemIO" key="{OrderNumber}" text="{displayText}" />
+										</ComboBox>
+										<!-- WBS -->
+										<Input id="Copy_IDGenInput7" value="{wbs}" placeholder="WBS" />
+										<!-- Trading Partner -->
+										<Input id="Copy_IDGenInput8" value="{tradingPartner}" placeholder="Trading Partner" />
+										<!-- Sales Order Number - NEW COMBOBOX WITH SEARCH -->
+										<ComboBox id="Copy_salesOrderSelect" selectedKey="{salesOrder}" change=".onSalesOrderChange" loadItems=".onSalesOrderOpen" items="{/salesOrders}">
+											<core:Item id="Copy_IDGenItemSO0" key="" text="Select Sales Order..." />
+											<core:Item id="Copy_IDGenItemSO" key="{SalesOrder}" text="{SalesOrder}" />
+										</ComboBox>
+										<!-- Sales Order Item Number - AUTO-POPULATED INPUT -->
+										<Input id="Copy_salesOrderItemInput" value="{salesOrderItem}" placeholder="Item Number" editable="false" enabled="true" />
+										<!-- Segment-Product - AUTO-POPULATED INPUT -->
+										<Input id="Copy_segmentProductInput" value="{SegmentProduct}" placeholder="Segment-Product" editable="false" enabled="true" />
+										<!-- Segment-Ship to Party - AUTO-POPULATED INPUT -->
+										<Input id="Copy_segmentShipInput" value="{segmentShip}" placeholder="Ship to Party" editable="false" enabled="true" />
+										<!-- Segment-Sold to Party - AUTO-POPULATED INPUT -->
+										<Input id="Copy_segmentSoldInput" value="{segmentSold}" placeholder="Sold to Party" editable="false" enabled="true" />
+										<!-- Delete Button -->
+										<Button id="Copy_IDGenButton3" icon="sap-icon://delete" type="Reject" press=".onDeleteRow" />
+									</cells>
+								</ColumnListItem>
+							</items>
+						</Table>
+					</ScrollContainer>
+					<HBox id="Copy_IDGenHBox5" class="sapUiTinyMarginTop sapUiSmallMarginBegin">
+						<Text id="Copy_IDGenText22" text="* indicates mandatory fields" />
+					</HBox>
+				</VBox>
+			</VBox>
+
+			<!-- Document Attachments Section -->
+<Panel id="Copy_dmsPanel" headerText="Supporting Documents" class="sapUiSmallMarginTop">
+    <content>
+        <VBox id="Copy_dmsVBox" class="sapUiSmallMargin">
+            
+            <Toolbar id="Copy_dmsToolbar">
+                <ToolbarSpacer id="Copy_dmsToolbarSpacer" />
+                <u:FileUploader
+                    id="Copy_dmsFileUploader"
+                    buttonText="Upload"
+                    buttonOnly="true"
+                    iconOnly="false"
+                    multiple="false"
+                    change=".onDMSFileSelected"
+                    style="Emphasized" />
+            </Toolbar>
+
+            <Table id="Copy_dmsDocumentsTable"
+                items="{/dmsDocuments}"
+                noDataText="No documents uploaded"
+                class="sapUiSmallMarginTop">
+
+                <columns>
+                    <Column id="Copy_dmsColFileName" width="40%">
+                        <Text id="_IDGenText86" text="File Name" />
+                    </Column>
+                    <Column id="Copy_dmsColType" width="15%">
+                        <Text id="_IDGenText87" text="Type" />
+                    </Column>
+                    <Column id="Copy_dmsColSize" width="20%">
+                        <Text id="_IDGenText88" text="Size" />
+                    </Column>
+                    <Column id="Copy_dmsColDate" width="15%">
+                        <Text id="_IDGenText89" text="Uploaded On" />
+                    </Column>
+                    <Column id="Copy_dmsColActions" width="10%" hAlign="Center">
+                        <Text id="_IDGenText90" text="Actions" />
+                    </Column>
+                </columns>
+
+                <items>
+                    <ColumnListItem id="Copy_dmsDocItem">
+                        <cells>
+                            <Text id="_IDGenText91" text="{fileName}" />
+                            <Text id="_IDGenText92" text="{fileType}" />
+                            <Text id="_IDGenText93" text="{fileSize}" />
+                            <Text id="_IDGenText94" text="{uploadedOn}" />
+                            <HBox id="_IDGenHBox8" justifyContent="Center">
+                                <Button id="_IDGenButton"
+                                    icon="sap-icon://download"
+                                    type="Transparent"
+                                    tooltip="Download"
+                                    press=".onDMSDownload" />
+                                <Button id="_IDGenButton4"
+                                    icon="sap-icon://delete"
+                                    type="Transparent"
+                                    tooltip="Delete"
+                                    press=".onDMSDelete" />
+                            </HBox>
+                        </cells>
+                    </ColumnListItem>
+                </items>
+
+            </Table>
+        </VBox>
+    </content>
+</Panel>
+		</content>
+		
+		<!-- Fixed Footer with Action Buttons -->
+		<footer>
+			<Toolbar id="Copy_footerToolbar">
+				<ToolbarSpacer id="Copy_footerToolbarSpacer" />
+				<Button id="Copy_saveAsDraftButton" text="Save as Draft" type="Default" visible= "true" icon="sap-icon://save" press=".onSaveAsDraft" />
+				<Button id="Copy_submitButton" text="Submit" type="Emphasized" icon="sap-icon://accept" press=".onSubmit" />
+			</Toolbar>
+		</footer>
+	</Page>
+</mvc:View>

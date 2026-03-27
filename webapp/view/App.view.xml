@@ -1,0 +1,53 @@
+<mvc:View
+  controllerName="accrual.controller.App"
+  xmlns:mvc="sap.ui.core.mvc"
+  xmlns="sap.m"
+  xmlns:tnt="sap.tnt">
+
+  <tnt:ToolPage id="toolPage">
+    
+    <!-- HEADER -->
+    <tnt:header>
+      <tnt:ToolHeader id="_IDGenToolHeader">
+        <!-- Hamburger Menu Button -->
+        <Button id="sideNavigationToggleButton"
+          icon="sap-icon://menu2"
+          type="Transparent"
+          press="onToggleSideNavigation"
+          tooltip="Toggle Navigation"/>
+        
+        <Title id="_IDGenTitle2" text="Accrual Application" />
+        <ToolbarSpacer id="_IDGenToolbarSpacer3"/>
+      </tnt:ToolHeader>
+    </tnt:header>
+
+    <!-- SIDE NAVIGATION -->
+    <tnt:sideContent>
+      <tnt:SideNavigation id="sideNavigation" 
+        selectedKey="dashboard"
+        expanded="true">
+        <tnt:NavigationList id="_IDGenNavigationList">
+          
+          <tnt:NavigationListItem id="_IDGenNavigationListItem"
+            text="Dashboard"
+            key="dashboard"
+            icon="sap-icon://home"
+            select="onNavPress"/>
+
+          <tnt:NavigationListItem id="_IDGenNavigationListItem1"
+            text="New Request"
+            key="request"
+            icon="sap-icon://add"
+            select="onNavPress"/>
+
+        </tnt:NavigationList>
+      </tnt:SideNavigation>
+    </tnt:sideContent>
+
+    <!-- MAIN CONTENT -->
+    <tnt:mainContents>
+      <App id="app"/>
+    </tnt:mainContents>
+
+  </tnt:ToolPage>
+</mvc:View>
