@@ -1,124 +1,171 @@
 sap.ui.define([
-    "sap/base/Log"
-], function (Log) {
+    "sap/base/Log",
+    "accrual/config/AppConfig"
+], function (Log, AppConfig) {
     "use strict";
 
     return {
 
-        // ─── CONFIGS ─────────────────────────────────────────────────────────────────
+    // ─── CONFIGS FROM APPCONFIG ─────────────────────────────────────────────
 
-        _workflowLogsConfig: {
-            baseUrl: "https://is-apim-dev.test01.apimanagement.eu20.hana.ondemand.com/ZBTP_HYPERAUTOMATION_SERVICES_SRV",
-            username: "S_DS4130_API",
-            password: "A7y2?HQR9=5%C!05"
-        },
+    _workflowLogsConfig: AppConfig.workflowLogs,
 
-        _processAutomationConfig: {
-            definitionId: "us10.e84e1793trial.infineumaccrual4.accrual_Process",
-            apiEndpoint: "https://is-apim-dev.test01.apimanagement.eu20.hana.ondemand.com:443/public/workflow/rest/v1/workflow-instances",
-            uaaConfig: {
-                url: "https://development-zce2p8yp.authentication.eu20.hana.ondemand.com",
-                clientId: "sb-babbf665-486d-4047-9f85-9283b0ec2896!b69304|xsuaa!b47942",
-                clientSecret: "50e3dff7-ea11-44a5-b63b-b56142d5fb8e$WbzdhEObla2jUBNDKWLdON-13dSBJVS4PVXdSS2j7tk="
-            }
-        },
+    _processAutomationConfig: AppConfig.processAutomation,
 
-        _instanceConfig: {
-            baseEndpoint: "https://is-apim-dev.test01.apimanagement.eu20.hana.ondemand.com/public/workflow/rest/v1/workflow-instances",
-            username: "S_DS4130_API",
-            password: "A7y2?HQR9=5%C!05"
-        },
+    _instanceConfig: AppConfig.instance,
 
-        _taskInstanceConfig: {
-            baseEndpoint: "https://is-apim-dev.test01.apimanagement.eu20.hana.ondemand.com/public/workflow/rest/v1/task-instances",
-            username: "S_DS4130_API",
-            password: "A7y2?HQR9=5%C!05"
-        },
+    _taskInstanceConfig: AppConfig.taskInstance,
 
-        _businessPartnerConfig: {
-            baseEndpoint: "https://is-apim-dev.test01.apimanagement.eu20.hana.ondemand.com/dev/API_BUSINESS_PARTNER",
-            username: "S_DS4130_API",
-            password: "A7y2?HQR9=5%C!05"
-        },
+    _businessPartnerConfig: AppConfig.businessPartner,
 
-        _companyCodeConfig: {
-            apiEndpoint: "https://is-apim-dev.test01.apimanagement.eu20.hana.ondemand.com/C_COMPANYCODEVALUEHELPPROJ_CDS/C_CompanyCodeValueHelpProj",
-            username: "S_DS4130_API",
-            password: "A7y2?HQR9=5%C!05"
-        },
+    _companyCodeConfig: AppConfig.companyCode,
 
-        _glAccountConfig: {
-            apiEndpoint: "https://is-apim-dev.test01.apimanagement.eu20.hana.ondemand.com:443/C_GLACCOUNTVALUEHELP_CDS/C_GLAccountValueHelp",
-            username: "S_DS4130_API",
-            password: "A7y2?HQR9=5%C!05"
-        },
+    _glAccountConfig: AppConfig.glAccount,
 
-        _purchaseOrderConfig: {
-            apiEndpoint: "https://is-apim-dev.test01.apimanagement.eu20.hana.ondemand.com/C_PURCHASEORDER_FS_SRV/C_PurchaseOrderFs",
-            username: "S_DS4130_API",
-            password: "A7y2?HQR9=5%C!05"
-        },
+    _purchaseOrderConfig: AppConfig.purchaseOrder,
 
-        _purchaseOrderItemConfig: {
-            apiEndpoint: "https://is-apim-dev.test01.apimanagement.eu20.hana.ondemand.com/C_PURCHASEORDER_FS_SRV/I_PurchaseOrderItem",
-            username: "S_DS4130_API",
-            password: "A7y2?HQR9=5%C!05"
-        },
+    _purchaseOrderItemConfig: AppConfig.purchaseOrderItem,
 
-        _costCentreConfig: {
-            apiEndpoint: "https://is-apim-dev.test01.apimanagement.eu20.hana.ondemand.com:443/FCO_MANAGE_COST_CENTERS_SRV/C_CostCenter",
-            username: "S_DS4130_API",
-            password: "A7y2?HQR9=5%C!05"
-        },
+    _costCentreConfig: AppConfig.costCentre,
 
-        _internalOrderConfig: {
-            apiEndpoint: "https://is-apim-dev.test01.apimanagement.eu20.hana.ondemand.com/FCO_INTERNAL_ORDER_SRV/InternalOrderSet",
-            username: "S_DS4130_API",
-            password: "A7y2?HQR9=5%C!05"
-        },
+    _internalOrderConfig: AppConfig.internalOrder,
 
-        _salesOrderConfig: {
-            apiEndpoint: "https://is-apim-dev.test01.apimanagement.eu20.hana.ondemand.com:443/API_SALES_ORDER_SRV/A_SalesOrderItem",
-            username: "S_DS4130_API",
-            password: "A7y2?HQR9=5%C!05"
-        },
+    _salesOrderConfig: AppConfig.salesOrder,
 
-        _currencyConfig: {
-            apiEndpoint: "https://is-apim-dev.test01.apimanagement.eu20.hana.ondemand.com/UI_CURRENCYEXCHANGERATE/I_Currency?$top=200",
-            username: "S_DS4130_API",
-            password: "A7y2?HQR9=5%C!05"
-        },
+    _currencyConfig: AppConfig.currency,
 
-        _segmentConfig: {
-            apiEndpoint: "https://is-apim-dev.test01.apimanagement.eu20.hana.ondemand.com/MD_PRODUCT_OP_SRV/C_ProductObjPgSalesOrder",
-            username: "S_DS4130_API",
-            password: "A7y2?HQR9=5%C!05"
-        },
+    _segmentConfig: AppConfig.segment,
 
-        _dmsConfig: {
-            baseUrl: "https://is-apim-dev.test01.apimanagement.eu20.hana.ondemand.com",
-            repositoryId: "1a95e926-8dff-43f3-a0dc-be3646683c55",
-            clientId: "sb-0b07ab86-da06-48c2-aaff-cd70c3986dde!b69304|sdm-di-DocumentManagement-sdm_integration!b873",
-            clientSecret: "e54bee4d-305a-4b5a-bfd3-fcdb7154dc35$wrq9Ite3DTvTUTeCKfK_gbBeJy9sBdU39JKWTNfk-LM=",
-            tokenUrl: "https://development-zce2p8yp.authentication.eu20.hana.ondemand.com/oauth/token",
-            endpoints: function () {
-                var base = this.baseUrl;
-                var repo = this.repositoryId;
-                return {
-                    getObject:      base + "/GetObject/browser/" + repo + "/root",
-                    createFolder:   base + "/CreateFolder/browser/" + repo + "/root",
-                    createDocument: base + "/Createdocument/browser/" + repo + "/root",
-                    download:       base + "/Download/browser/" + repo + "/root",
-                    delete:         base + "/delete/browser/" + repo + "/root"
-                };
-            }
-        },
+    _dashboardConfig: AppConfig.dashboard,
+
+    _dmsConfig: AppConfig.dms,
 
         // ─── SHARED HELPER ───────────────────────────────────────────────────────────
 
         _getAuthHeader: function (username, password) {
             return "Basic " + btoa(username + ":" + password);
         },
+
+        // ───────────── DASHBOARD APIs ─────────────
+
+    fetchAccrualRequests: function () {
+
+        var cfg = this._dashboardConfig;
+
+        return fetch(cfg.accrualApiEndpoint, {
+            method: "GET",
+            headers: {
+                "Authorization": this._getAuthHeader(cfg.username, cfg.password),
+                "Accept": "application/json"
+            }
+        })
+        .then(function (response) {
+
+            if (!response.ok) {
+                throw new Error("Failed to fetch accrual requests: " + response.status);
+            }
+
+            return response.json();
+        });
+    },
+
+    recallWorkflowInstance: function (instanceId) {
+
+        var cfg = this._dashboardConfig;
+
+        return fetch(cfg.recallApiEndpoint, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify({
+                instanceId: instanceId
+            })
+        })
+        .then(function (response) {
+
+            if (!response.ok) {
+                throw new Error("Recall failed: " + response.status);
+            }
+
+            return response;
+        });
+    },
+
+    // ─── VIEW DETAILS API ─────────────────────────────────────────────────────────────
+
+     fetchWorkflowContext: function (instanceId) {
+
+    var url =
+        this._instanceConfig.baseEndpoint +
+        "/" +
+        instanceId +
+        "/context";
+
+    return fetch(url, {
+        method: "GET",
+        headers: {
+            "Authorization": this._getAuthHeader(
+                this._instanceConfig.username,
+                this._instanceConfig.password
+            ),
+            "Accept": "application/json"
+        }
+    })
+    .then(function (response) {
+
+        if (!response.ok) {
+            throw new Error("Failed to fetch workflow context: " + response.status);
+        }
+
+        return response.json();
+
+    });
+},
+
+// ─── Workflow instance ─────────────────────────────────────────────────────────────
+
+fetchWorkflowInstanceContext: function (instanceId) {
+
+    var cfg = this._instanceConfig;
+
+    var url = cfg.baseEndpoint + "/" + instanceId + "/context";
+
+    return fetch(url, {
+        method: "GET",
+        headers: {
+            "Authorization": this._getAuthHeader(cfg.username, cfg.password),
+            "Accept": "application/json"
+        }
+    })
+    .then(function (response) {
+
+        if (!response.ok) {
+            throw new Error("Failed to fetch workflow instance context: " + response.status);
+        }
+
+        return response.json();
+
+    });
+
+},
+
+getBusinessPartnerEndpoint: function(typeOfParty) {
+
+    var baseUrl = this._businessPartnerConfig.baseEndpoint;
+
+    if (typeOfParty === "Customer") {
+        return baseUrl + "/A_Customer";
+    }
+
+    if (typeOfParty === "Supplier") {
+        return baseUrl + "/A_Supplier";
+    }
+
+    return baseUrl + "/A_BusinessPartner";
+
+},
+
 
         // ─── DATE HELPER ─────────────────────────────────────────────────────────────
 
@@ -311,6 +358,32 @@ sap.ui.define([
             })
             .then(function (r) { if (!r.ok) throw new Error("Failed: " + r.status); return r.json(); })
             .then(function (data) { return data.d && data.d.results ? data.d.results : []; });
+        },
+
+                searchSupplierByName: function (supplierName, typeOfParty) {
+            if (!supplierName || !typeOfParty) return Promise.resolve(null);
+            var endpoint = this.getBusinessPartnerEndpoint(typeOfParty);
+            var filter = typeOfParty === "Customer"
+                ? "?$filter=CustomerName eq '" + encodeURIComponent(supplierName) + "'&$top=1"
+                : "?$filter=SupplierName eq '" + encodeURIComponent(supplierName) + "'&$top=1";
+
+            return fetch(endpoint + filter, {
+                method: "GET",
+                headers: {
+                    "Authorization": this._getAuthHeader(this._businessPartnerConfig.username, this._businessPartnerConfig.password),
+                    "Accept": "application/json"
+                }
+            })
+            .then(function (r) { return r.ok ? r.json() : null; })
+            .then(function (data) {
+                if (data && data.d && data.d.results && data.d.results.length > 0) {
+                    return typeOfParty === "Customer"
+                        ? data.d.results[0].Customer || null
+                        : data.d.results[0].Supplier || null;
+                }
+                return null;
+            })
+            .catch(function () { return null; });
         },
 
         fetchGLAccounts: function (companyCode) {
@@ -572,31 +645,6 @@ sap.ui.define([
             });
         },
 
-        searchSupplierByName: function (supplierName, typeOfParty) {
-            if (!supplierName || !typeOfParty) return Promise.resolve(null);
-            var endpoint = this.getBusinessPartnerEndpoint(typeOfParty);
-            var filter = typeOfParty === "Customer"
-                ? "?$filter=CustomerName eq '" + encodeURIComponent(supplierName) + "'&$top=1"
-                : "?$filter=SupplierName eq '" + encodeURIComponent(supplierName) + "'&$top=1";
-
-            return fetch(endpoint + filter, {
-                method: "GET",
-                headers: {
-                    "Authorization": this._getAuthHeader(this._businessPartnerConfig.username, this._businessPartnerConfig.password),
-                    "Accept": "application/json"
-                }
-            })
-            .then(function (r) { return r.ok ? r.json() : null; })
-            .then(function (data) {
-                if (data && data.d && data.d.results && data.d.results.length > 0) {
-                    return typeOfParty === "Customer"
-                        ? data.d.results[0].Customer || null
-                        : data.d.results[0].Supplier || null;
-                }
-                return null;
-            })
-            .catch(function () { return null; });
-        },
 
         fetchGLAccountForSupplierCustomer: function (supplierCustomerNumber, typeOfParty, companyCode) {
             if (!companyCode) return Promise.resolve(null);

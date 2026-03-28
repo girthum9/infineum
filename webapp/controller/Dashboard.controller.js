@@ -6,8 +6,9 @@ sap.ui.define([
   "sap/m/MessageToast",
   "sap/m/MessageBox",
   "sap/m/ActionSheet",
-  "sap/m/Button"
-], function (Controller, JSONModel, Filter, FilterOperator, MessageToast, MessageBox, ActionSheet, Button) {
+  "sap/m/Button",
+  "accrual/service/WorkflowAPI"
+], function (Controller, JSONModel, Filter, FilterOperator, MessageToast, MessageBox, ActionSheet, Button, WorkflowAPI) {
   "use strict";
 
   return Controller.extend("accrual.controller.Dashboard", {
@@ -88,49 +89,37 @@ onRefreshPress: function() {
   this._loadDataFromAPI();
 },
 
-    _loadDataFromAPI: function() {
-      const sUrl = "https://is-apim-dev.test01.apimanagement.eu20.hana.ondemand.com/ZBTP_HYPERAUTOMATION_SERVICES_SRV/AccuralsSet";
-      const sUsername = "S_DS4130_API";
-      const sPassword = "A7y2?HQR9=5%C!05";
-      
-      // Create basic auth header
-      const sAuth = btoa(sUsername + ":" + sPassword);
-      
-      // Show busy indicator
-      this.getView().setBusy(true);
+_loadDataFromAPI: function() {
 
-      fetch(sUrl, {
-        method: "GET",
-        headers: {
-          "Authorization": "Basic " + sAuth,
-          "Accept": "application/json"
-        }
-      })
-      .then(response => {
-        if (!response.ok) {
-          throw new Error("HTTP error! status: " + response.status);
-        }
-        return response.json();
-      })
-      .then(data => {
-        this._processAPIData(data);
-        this.getView().setBusy(false);
-      })
-      .catch(error => {
-        console.error("Error loading data:", error);
-        this.getView().setBusy(false);
-        
-        // Reset tile states
-        this.byId("TotalRequestTile").setState("Failed");
-        this.byId("draftTile").setState("Failed");
-        this.byId("pendingApprovalTile").setState("Failed");
-        this.byId("rejectedTile").setState("Failed");
-        this.byId("completedTile").setState("Failed");
-        this.byId("requestsTable").setBusy(false);
-        
-        MessageBox.error("Failed to load data from server. Please try again later.\n\nError: " + error.message);
-      });
-    },
+  this.getView().setBusy(true);
+
+  WorkflowAPI.fetchAccrualRequests()
+
+  .then(data => {
+    this._processAPIData(data);
+    this.getView().setBusy(false);
+  })
+
+  .catch(error => {
+
+    console.error("Error loading data:", error);
+
+    this.getView().setBusy(false);
+
+    this.byId("TotalRequestTile").setState("Failed");
+    this.byId("draftTile").setState("Failed");
+    this.byId("pendingApprovalTile").setState("Failed");
+    this.byId("rejectedTile").setState("Failed");
+    this.byId("completedTile").setState("Failed");
+    this.byId("requestsTable").setBusy(false);
+
+    MessageBox.error(
+      "Failed to load data from server.\n\nError: " + error.message
+    );
+
+  });
+
+},
 
     _processAPIData: function(data) {
       const aResults = data.d && data.d.results ? data.d.results : [];
@@ -444,46 +433,51 @@ _formatDate: function(sDate) {
       MessageToast.show("Navigating to " + sRouteName + " with ID: " + sInstantId);
     },
 
-    _triggerIntegrationFlow: function(sInstantId) {
+_triggerIntegrationFlow: function(sInstantId) {
+
   if (this._actionSheet) {
     this._actionSheet.close();
   }
 
-  const sUrl = "https://is-apim-dev.test01.apimanagement.eu20.hana.ondemand.com/http/Accrual/Process";
+  MessageBox.confirm(
+    "Are you sure you want to recall the request for Instance ID: " + sInstantId + "?",
+    {
+      title: "Confirm Recall",
+      onClose: function(sAction) {
 
- MessageBox.confirm(
-  "Are you sure you want to recall the request for Instance ID: " + sInstantId + "?",
-  {
-    title: "Confirm Recall",
-    onClose: function(sAction) {
-      if (sAction === MessageBox.Action.OK) {
-        this.getView().setBusy(true);
+        if (sAction === MessageBox.Action.OK) {
 
-        fetch(sUrl, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json"
-          },
-          body: JSON.stringify({ instanceId: sInstantId })
-        })
-        .then(response => {
-          this.getView().setBusy(false);
-          if (!response.ok) {
-            throw new Error("HTTP error! status: " + response.status);
-          }
-          MessageToast.show("Request recalled successfully for: " + sInstantId);
-        })
-        .catch(error => {
-          this.getView().setBusy(false);
-          MessageBox.error(
-            "Failed to recall request.\n\nError: " + error.message
-          );
-        });
-      }
-    }.bind(this)
-  }
-);
-    },
+          this.getView().setBusy(true);
+
+          WorkflowAPI.recallWorkflowInstance(sInstantId)
+
+          .then(() => {
+
+            this.getView().setBusy(false);
+
+            MessageToast.show(
+              "Request recalled successfully for: " + sInstantId
+            );
+
+          })
+
+          .catch(error => {
+
+            this.getView().setBusy(false);
+
+            MessageBox.error(
+              "Failed to recall request.\n\nError: " + error.message
+            );
+
+          });
+
+        }
+
+      }.bind(this)
+    }
+  );
+
+},
 
     onSearch: function(oEvent) {
       const sQuery = oEvent.getParameter("query") || oEvent.getParameter("newValue") || "";

@@ -1,8 +1,8 @@
 sap.ui.define([
     "sap/ui/core/mvc/Controller",
     "sap/ui/model/json/JSONModel",
-    "sap/ui/thirdparty/jquery"
-], function (Controller, JSONModel, jQuery) {
+    "accrual/service/WorkflowAPI"
+], function (Controller, JSONModel, WorkflowAPI) {
     "use strict";
 
     return Controller.extend("accrual.controller.ViewDetails", {
@@ -18,31 +18,31 @@ sap.ui.define([
             }
         },
 
-        _loadRequestData: function (sInstanceId) {
-            const sApiEndpoint =
-                "https://is-apim-dev.test01.apimanagement.eu20.hana.ondemand.com/public/workflow/rest/v1/workflow-instances/"
-                + sInstanceId + "/context";
+_loadRequestData: function (sInstanceId) {
 
-            sap.ui.core.BusyIndicator.show();
+    sap.ui.core.BusyIndicator.show();
 
-            jQuery.ajax({
-                url: sApiEndpoint,
-                method: "GET",
-                headers: {
-                    "Authorization": "Bearer <token>",   // put real token
-                    "Accept": "application/json"
-                },
-                success: function (oResponse) {
-                    sap.ui.core.BusyIndicator.hide();
-                    this._mapApiDataToModel(oResponse, sInstanceId);
-                }.bind(this),
-                error: function (oError) {
-                    sap.ui.core.BusyIndicator.hide();
-                    sap.m.MessageToast.show("Error loading data");
-                    console.error(oError);
-                }
-            });
-        },
+    WorkflowAPI.fetchWorkflowContext(sInstanceId)
+
+    .then(function (oResponse) {
+
+        sap.ui.core.BusyIndicator.hide();
+
+        this._mapApiDataToModel(oResponse, sInstanceId);
+
+    }.bind(this))
+
+    .catch(function (error) {
+
+        sap.ui.core.BusyIndicator.hide();
+
+        sap.m.MessageToast.show("Error loading data");
+
+        console.error(error);
+
+    });
+
+},
 
         _formatToday: function () {
             const d = new Date();

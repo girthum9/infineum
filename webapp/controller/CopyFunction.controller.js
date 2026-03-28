@@ -9,87 +9,6 @@ sap.ui.define([
 
     return Controller.extend("accrual.controller.CopyFunction", {
         
-        _processAutomationConfig: {
-            definitionId: "us10.e84e1793trial.infineumaccrual4.accrual_Process",
-            apiEndpoint: "https://is-apim-dev.test01.apimanagement.eu20.hana.ondemand.com:443/public/workflow/rest/v1/workflow-instances",
-            uaaConfig: {
-                url: "https://development-zce2p8yp.authentication.eu20.hana.ondemand.com",
-                clientId: "sb-babbf665-486d-4047-9f85-9283b0ec2896!b69304|xsuaa!b47942",
-                clientSecret: "50e3dff7-ea11-44a5-b63b-b56142d5fb8e$WbzdhEObla2jUBNDKWLdON-13dSBJVS4PVXdSS2j7tk="
-            }
-        },
-
-        _businessPartnerConfig: {
-            baseEndpoint: "https://is-apim-dev.test01.apimanagement.eu20.hana.ondemand.com/dev/API_BUSINESS_PARTNER",
-            Username: "S_DS4130_API",
-            Password: "A7y2?HQR9=5%C!05"
-        },
-
-        _companyCodeConfig: {
-            apiEndpoint: "https://is-apim-dev.test01.apimanagement.eu20.hana.ondemand.com/C_COMPANYCODEVALUEHELPPROJ_CDS/C_CompanyCodeValueHelpProj",
-            Username: "S_DS4130_API",
-            Password: "A7y2?HQR9=5%C!05"
-        },
-
-        _glAccountConfig: {
-            apiEndpoint: "https://is-apim-dev.test01.apimanagement.eu20.hana.ondemand.com:443/C_GLACCOUNTVALUEHELP_CDS/C_GLAccountValueHelp",
-            Username: "S_DS4130_API",
-            Password: "A7y2?HQR9=5%C!05"
-        },
-
-        _purchaseOrderConfig: {
-            apiEndpoint: "https://is-apim-dev.test01.apimanagement.eu20.hana.ondemand.com/C_PURCHASEORDER_FS_SRV/C_PurchaseOrderFs",
-            Username: "S_DS4130_API",
-            Password: "A7y2?HQR9=5%C!05"
-        },
-
-        _costCentreConfig: {
-            apiEndpoint: "https://is-apim-dev.test01.apimanagement.eu20.hana.ondemand.com:443/FCO_MANAGE_COST_CENTERS_SRV/C_CostCenter",
-            Username: "S_DS4130_API",
-            Password: "A7y2?HQR9=5%C!05"
-        },
-
-        _internalOrderConfig: {
-            apiEndpoint: "https://is-apim-dev.test01.apimanagement.eu20.hana.ondemand.com/FCO_INTERNAL_ORDER_SRV/InternalOrderSet",
-            Username: "S_DS4130_API",
-            Password: "A7y2?HQR9=5%C!05"
-        },
-
-        _salesOrderConfig: {
-            apiEndpoint: "https://is-apim-dev.test01.apimanagement.eu20.hana.ondemand.com:443/API_SALES_ORDER_SRV/A_SalesOrderItem",
-            Username: "S_DS4130_API",
-            Password: "A7y2?HQR9=5%C!05"
-        },
-
-        _currencyConfig: {
-    apiEndpoint: "https://is-apim-dev.test01.apimanagement.eu20.hana.ondemand.com/UI_CURRENCYEXCHANGERATE/I_Currency?$top=200",
-    Username: "S_DS4130_API",
-    Password: "A7y2?HQR9=5%C!05"
-},
-
-        _instanceConfig: {
-    baseEndpoint: "https://is-apim-dev.test01.apimanagement.eu20.hana.ondemand.com/public/workflow/rest/v1/workflow-instances",
-    Username: "S_DS4130_API",
-    Password: "A7y2?HQR9=5%C!05"
-},
-
-_taskInstanceConfig: {
-    baseEndpoint: "https://is-apim-dev.test01.apimanagement.eu20.hana.ondemand.com/public/workflow/rest/v1/task-instances",
-    Username: "S_DS4130_API",
-    Password: "A7y2?HQR9=5%C!05"
-},
-
-        _segmentConfig: {
-            apiEndpoint: "https://is-apim-dev.test01.apimanagement.eu20.hana.ondemand.com/MD_PRODUCT_OP_SRV/C_ProductObjPgSalesOrder",
-            Username: "S_DS4130_API",
-            Password: "A7y2?HQR9=5%C!05"
-        },
-
-        _purchaseOrderItemConfig: {
-         apiEndpoint: "https://is-apim-dev.test01.apimanagement.eu20.hana.ondemand.com/C_PURCHASEORDER_FS_SRV/I_PurchaseOrderItem",
-         Username: "S_DS4130_API",
-         Password: "A7y2?HQR9=5%C!05"
-        },
 onInit: function() {
     var sEmail = this._getEmailFromURL();
     var sMonthEndDate = this._getCurrentMonthEndDate();
@@ -190,72 +109,44 @@ _onHashChanged: function() {
         },
 
 _fetchCompanyCodes: function() {
+
     var that = this;
     var oModel = this.getView().getModel();
     var oAffiliateSelect = this.byId("affiliateSelect");
-    
+
     if (oAffiliateSelect) {
         oAffiliateSelect.setBusy(true);
     }
-    
-    var url = this._companyCodeConfig.apiEndpoint;
-    console.log("Fetching company codes from:", url);
-    
-    return fetch(url, {
-        method: "GET",
-        headers: {
-            "Authorization": "Basic " + btoa(
-                this._companyCodeConfig.Username + ":" + 
-                this._companyCodeConfig.Password
-            ),
-            "Accept": "application/json"
-        }
+
+    return WorkflowAPI.fetchCompanyCodes()
+
+    .then(function(aCompanyCodes) {
+
+        var aFilteredCompanyCodes = aCompanyCodes.filter(function(item) {
+            return item.CompanyCodeName &&
+                   item.CompanyCodeName.toUpperCase().startsWith("INFINEUM");
+        });
+
+        aFilteredCompanyCodes.sort(function(a,b){
+            return (a.CompanyCodeName || "")
+                .localeCompare(b.CompanyCodeName || "");
+        });
+
+        var oMapping = {};
+        aFilteredCompanyCodes.forEach(function(item){
+            if(item.CompanyCodeName && item.CompanyCode){
+                oMapping[item.CompanyCodeName] = item.CompanyCode;
+            }
+        });
+
+        oModel.setProperty("/companyCodes", aFilteredCompanyCodes);
+        oModel.setProperty("/affiliateToCompanyCodeMap", oMapping);
+        oModel.setProperty("/companyCodesLoaded", true);
+
     })
-    .then(function(response) {
-        if (!response.ok) {
-            throw new Error("Failed to fetch company codes: " + response.status);
-        }
-        return response.json();
-    })
-    .then(function(data) {
-        if (data.d && data.d.results) {
-            var aCompanyCodes = data.d.results;
-            
-            var aFilteredCompanyCodes = aCompanyCodes.filter(function(item) {
-                return item.CompanyCodeName && 
-                       item.CompanyCodeName.toUpperCase().startsWith("INFINEUM");
-            });
-            
-            aFilteredCompanyCodes.sort(function(a, b) {
-                var nameA = (a.CompanyCodeName || "").toUpperCase();
-                var nameB = (b.CompanyCodeName || "").toUpperCase();
-                return nameA.localeCompare(nameB);
-            });
-            
-            var oMapping = {};
-            aFilteredCompanyCodes.forEach(function(item) {
-                if (item.CompanyCodeName && item.CompanyCode) {
-                    oMapping[item.CompanyCodeName] = item.CompanyCode;
-                }
-            });
-            
-            oModel.setProperty("/companyCodes", aFilteredCompanyCodes);
-            oModel.setProperty("/affiliateToCompanyCodeMap", oMapping);
-            oModel.setProperty("/companyCodesLoaded", true);
-            
-            MessageToast.show(aFilteredCompanyCodes.length + " affiliates loaded successfully");
-        } else {
-            MessageToast.show("No affiliates available");
-        }
-    })
-    .catch(function(error) {
-        console.error("Error fetching company codes:", error);
-        MessageBox.error("Failed to load affiliates from server. Please try again.\n\n" + error.message);
-        throw error;  // Re-throw to handle in chain
-    })
-    .finally(function() {
-        var oAffiliateSelect = that.byId("affiliateSelect");
-        if (oAffiliateSelect) {
+
+    .finally(function(){
+        if(oAffiliateSelect){
             oAffiliateSelect.setBusy(false);
         }
     });
@@ -308,281 +199,29 @@ onExit: function() {
             });
         },
 
-        _fetchGLAccounts: function(companyCode) {
-            if (!companyCode) {
-                console.warn("Company code not provided");
-                return Promise.resolve([]);
-            }
-            
-            var url = this._glAccountConfig.apiEndpoint + "?$filter=CompanyCode eq '" + companyCode + "'";
-            
-            return fetch(url, {
-                method: "GET",
-                headers: {
-                    "Authorization": "Basic " + btoa(
-                        this._glAccountConfig.Username + ":" + 
-                        this._glAccountConfig.Password
-                    ),
-                    "Accept": "application/json"
-                }
-            })
-            .then(function(response) {
-                if (!response.ok) {
-                    console.error("Failed to fetch GL accounts:", response.status);
-                    return [];
-                }
-                return response.json();
-            })
-            .then(function(data) {
-                if (data && data.d && data.d.results) {
-                    return data.d.results.map(function(account) {
-                        return {
-                            GLAccount: account.GLAccount || "",
-                            GLAccountName: account.GLAccountName || "",
-                            displayText: (account.GLAccount || "") + " - " + (account.GLAccountName || "")
-                        };
-                    });
-                }
-                return [];
-            })
-            .catch(function(error) {
-                console.error("Error fetching GL accounts:", error);
-                return [];
-            });
-        },
-
-        _fetchPurchaseOrders: function(supplierNumber) {
-            if (!supplierNumber) {
-                return Promise.resolve([]);
-            }
-            
-            var url = this._purchaseOrderConfig.apiEndpoint + "?$filter=Supplier eq '" + supplierNumber + "'";
-            console.log("Fetching Purchase Orders from:", url);
-            
-            return fetch(url, {
-                method: "GET",
-                headers: {
-                    "Authorization": "Basic " + btoa(
-                        this._purchaseOrderConfig.Username + ":" + 
-                        this._purchaseOrderConfig.Password
-                    ),
-                    "Accept": "application/json"
-                }
-            })
-            .then(function(response) {
-                if (!response.ok) {
-                    console.error("Failed to fetch purchase orders:", response.status);
-                    return [];
-                }
-                return response.json();
-            })
-            .then(function(data) {
-                if (data && data.d && data.d.results) {
-                    var aPurchaseOrders = data.d.results.map(function(po) {
-                        return {
-                            PurchaseOrder: po.PurchaseOrder || ""
-                        };
-                    });
-                    
-                    console.log("Found " + aPurchaseOrders.length + " purchase orders");
-                    return aPurchaseOrders;
-                }
-                return [];
-            })
-            .catch(function(error) {
-                console.error("Error fetching purchase orders:", error);
-                return [];
-            });
-        },
-
-_fetchPurchaseOrderItems: function(purchaseOrder) {
-    if (!purchaseOrder) {
-        console.warn("No purchase order provided to _fetchPurchaseOrderItems");
-        return Promise.resolve([]);
-    }
-    
-    var url = this._purchaseOrderItemConfig.apiEndpoint + "?$filter=PurchaseOrder eq '" + purchaseOrder + "'";
-    console.log("Fetching Purchase Order Items from:", url);
-    
-    return fetch(url, {
-        method: "GET",
-        headers: {
-            "Authorization": "Basic " + btoa(
-                this._purchaseOrderItemConfig.Username + ":" + 
-                this._purchaseOrderItemConfig.Password
-            ),
-            "Accept": "application/json"
-        }
-    })
-    .then(function(response) {
-        if (!response.ok) {
-            console.error("Failed to fetch purchase order items:", response.status);
-            return [];
-        }
-        return response.json();
-    })
-    .then(function(data) {
-        if (data && data.d && data.d.results) {
-            var aPOItems = data.d.results.map(function(item) {
-                return {
-                    PurchaseOrderItem: item.PurchaseOrderItem || "",
-                    PurchaseOrderItemText: item.PurchaseOrderItemText || "",
-                    NetAmount: item.NetAmount || "0.00",
-                    displayText: (item.PurchaseOrderItem || "") + 
-                                (item.PurchaseOrderItemText ? " - " + item.PurchaseOrderItemText : "")
-                };
-            });
-            
-            console.log("Purchase Order Items fetched successfully:", aPOItems);
-            return aPOItems;
-        }
-        console.warn("No results in purchase order items response");
-        return [];
-    })
-    .catch(function(error) {
-        console.error("Error fetching purchase order items:", error);
-        return [];
-    });
+_fetchGLAccounts: function(companyCode){
+    return WorkflowAPI.fetchGLAccounts(companyCode);
 },
 
-        _fetchCostCentres: function(companyCode) {
-            if (!companyCode) {
-                return Promise.resolve([]);
-            }
-            
-            var url = this._costCentreConfig.apiEndpoint + "?$filter=CompanyCode eq '" + companyCode + "'";
-            console.log("Fetching Cost Centres from:", url);
-            
-            return fetch(url, {
-                method: "GET",
-                headers: {
-                    "Authorization": "Basic " + btoa(
-                        this._costCentreConfig.Username + ":" + 
-                        this._costCentreConfig.Password
-                    ),
-                    "Accept": "application/json"
-                }
-            })
-            .then(function(response) {
-                if (!response.ok) {
-                    console.error("Failed to fetch cost centres:", response.status);
-                    return [];
-                }
-                return response.json();
-            })
-            .then(function(data) {
-                if (data && data.d && data.d.results) {
-                    var aCostCentres = data.d.results.map(function(cc) {
-                        return {
-                            CostCenter: cc.CostCenter || ""
-                        };
-                    });
-                    
-                    console.log("Found " + aCostCentres.length + " cost centres");
-                    return aCostCentres;
-                }
-                return [];
-            })
-            .catch(function(error) {
-                console.error("Error fetching cost centres:", error);
-                return [];
-            });
-        },
+_fetchPurchaseOrders: function(supplierNumber){
+    return WorkflowAPI.fetchPurchaseOrders(supplierNumber);
+},
 
-        _fetchInternalOrders: function(companyCode) {
-            if (!companyCode) {
-                return Promise.resolve([]);
-            }
-            
-            var url = this._internalOrderConfig.apiEndpoint + "?$filter=CompanyCode eq '" + companyCode + "'";
-            console.log("Fetching Internal Orders from:", url);
-            
-            return fetch(url, {
-                method: "GET",
-                headers: {
-                    "Authorization": "Basic " + btoa(
-                        this._internalOrderConfig.Username + ":" + 
-                        this._internalOrderConfig.Password
-                    ),
-                    "Accept": "application/json"
-                }
-            })
-            .then(function(response) {
-                if (!response.ok) {
-                    console.error("Failed to fetch internal orders:", response.status);
-                    return [];
-                }
-                return response.json();
-            })
-            .then(function(data) {
-                if (data && data.d && data.d.results) {
-                    var aInternalOrders = data.d.results.map(function(io) {
-                        return {
-                            OrderNumber: io.OrderNumber || "",
-                            OrderDescription: io.OrderDescription || "",
-                            displayText: (io.OrderNumber || "") + (io.OrderDescription ? " - " + io.OrderDescription : "")
-                        };
-                    });
-                    
-                    console.log("Found " + aInternalOrders.length + " internal orders");
-                    return aInternalOrders;
-                }
-                return [];
-            })
-            .catch(function(error) {
-                console.error("Error fetching internal orders:", error);
-                return [];
-            });
-        },
+_fetchPurchaseOrderItems: function(po){
+    return WorkflowAPI.fetchPurchaseOrderItems(po);
+},
 
-        _fetchSalesOrders: function() {
-            var url = this._salesOrderConfig.apiEndpoint;
-            console.log("Fetching Sales Orders from:", url);
-            
-            return fetch(url, {
-                method: "GET",
-                headers: {
-                    "Authorization": "Basic " + btoa(
-                        this._salesOrderConfig.Username + ":" + 
-                        this._salesOrderConfig.Password
-                    ),
-                    "Accept": "application/json"
-                }
-            })
-            .then(function(response) {
-                if (!response.ok) {
-                    console.error("Failed to fetch sales orders:", response.status);
-                    return [];
-                }
-                return response.json();
-            })
-            .then(function(data) {
-                if (data && data.d && data.d.results) {
-                    var oUniqueSalesOrders = {};
-                    data.d.results.forEach(function(item) {
-                        if (item.SalesOrder) {
-                            oUniqueSalesOrders[item.SalesOrder] = true;
-                        }
-                    });
-                    
-                    var aSalesOrders = Object.keys(oUniqueSalesOrders).map(function(so) {
-                        return {
-                            SalesOrder: so
-                        };
-                    }).sort(function(a, b) {
-                        return a.SalesOrder.localeCompare(b.SalesOrder);
-                    });
-                    
-                    console.log("Found " + aSalesOrders.length + " unique sales orders");
-                    return aSalesOrders;
-                }
-                return [];
-            })
-            .catch(function(error) {
-                console.error("Error fetching sales orders:", error);
-                return [];
-            });
-        },
+_fetchCostCentres: function(companyCode){
+    return WorkflowAPI.fetchCostCentres(companyCode);
+},
+
+_fetchInternalOrders: function(companyCode){
+    return WorkflowAPI.fetchInternalOrders(companyCode);
+},
+
+_fetchSalesOrders: function(){
+    return WorkflowAPI.fetchSalesOrders();
+},
 
         _fetchSalesOrderItems: function(salesOrder) {
             if (!salesOrder) {
@@ -622,65 +261,8 @@ _fetchPurchaseOrderItems: function(purchaseOrder) {
             });
         },
 
-     _fetchCurrencies: function() {
-    var url = this._currencyConfig.apiEndpoint;
-    console.log("Fetching currencies from:", url);
-    
-    return fetch(url, {
-        method: "GET",
-        headers: {
-            "Authorization": "Basic " + btoa(
-                this._currencyConfig.Username + ":" + 
-                this._currencyConfig.Password
-            ),
-            "Accept": "application/json"
-        }
-    })
-    .then(function(response) {
-        if (!response.ok) {
-            console.error("Failed to fetch currencies:", response.status);
-            throw new Error("HTTP error " + response.status);
-        }
-        return response.json();
-    })
-    .then(function(data) {
-        console.log("Currency API response:", data);
-        
-        if (data && data.d && data.d.results) {
-            var aCurrencies = data.d.results.map(function(currency) {
-                return {
-                    CurrencyISOCode: currency.CurrencyISOCode || ""
-                };
-            });
-            
-            // Remove duplicates and sort
-            var oUniqueCurrencies = {};
-            aCurrencies.forEach(function(curr) {
-                if (curr.CurrencyISOCode) {
-                    oUniqueCurrencies[curr.CurrencyISOCode] = true;
-                }
-            });
-            
-            var aUniqueCurrencies = Object.keys(oUniqueCurrencies).map(function(code) {
-                return {
-                    CurrencyISOCode: code
-                };
-            }).sort(function(a, b) {
-                return a.CurrencyISOCode.localeCompare(b.CurrencyISOCode);
-            });
-            
-            console.log("Processed " + aUniqueCurrencies.length + " unique currencies");
-            console.log("Sample currencies:", aUniqueCurrencies.slice(0, 5));
-            
-            return aUniqueCurrencies;
-        }
-        console.warn("No currency results in API response");
-        return [];
-    })
-    .catch(function(error) {
-        console.error("Error fetching currencies:", error);
-        throw error;
-    });
+_fetchCurrencies: function(){
+    return WorkflowAPI.fetchCurrencies();
 },
 
         _fetchSegmentData: function(salesOrder) {
@@ -871,49 +453,30 @@ _getCurrentDateFormatted: function() {
         return null;
     }
 },
+
 _loadInstanceData: function(sInstanceId) {
+
     var that = this;
     var oModel = this.getView().getModel();
-    
+
     sap.ui.core.BusyIndicator.show(0);
-    
-    var url = this._instanceConfig.baseEndpoint + "/" + sInstanceId + "/context";
-    
-    console.log("Fetching instance data from:", url);
-    
-    fetch(url, {
-        method: "GET",
-        headers: {
-            "Authorization": "Basic " + btoa(
-                this._instanceConfig.Username + ":" + 
-                this._instanceConfig.Password
-            ),
-            "Accept": "application/json"
-        }
-    })
-    .then(function(response) {
-        if (!response.ok) {
-            throw new Error("Failed to fetch instance data: " + response.status);
-        }
-        return response.json();
-    })
+
+    WorkflowAPI.fetchWorkflowInstanceContext(sInstanceId)
+
     .then(function(data) {
+
         console.log("Instance data received:", data);
-        
-        // Extract form data - PRIORITY ORDER
+
         var formData = null;
-        
-        // PRIORITY 1: Check for form_accrualSubmissionForm_2 (preferred)
+
         if (data.form_accrualSubmissionForm_2) {
             formData = data.form_accrualSubmissionForm_2;
             console.log("✓ Using form_accrualSubmissionForm_2 data");
         }
-        // PRIORITY 2: Fallback to startEvent.accrual
         else if (data.startEvent && data.startEvent.accrual) {
             formData = data.startEvent.accrual;
             console.log("✓ Using startEvent.accrual data (fallback)");
         }
-        // PRIORITY 3: Check for accrual object directly
         else if (data.accrual) {
             formData = data.accrual;
             console.log("✓ Using accrual data (fallback)");
@@ -922,28 +485,27 @@ _loadInstanceData: function(sInstanceId) {
             console.error("Unexpected data structure:", data);
             throw new Error("Invalid instance data format - cannot find form data");
         }
-        
+
         console.log("Form data extracted:", formData);
-        
-        // Map the data to the model
+
         that._mapInstanceDataToModel(formData, sInstanceId);
-        
-        //MessageToast.show("Instance data loaded successfully");
+
     })
+
     .catch(function(error) {
+
         console.error("Error loading instance data:", error);
+
         MessageBox.error(
-            "Failed to load instance data.\n\n" + error.message,
-            {
-                onClose: function() {
-                    console.log("User closed error dialog");
-                }
-            }
+            "Failed to load instance data.\n\n" + error.message
         );
+
     })
+
     .finally(function() {
         sap.ui.core.BusyIndicator.hide();
     });
+
 },
 
 _mapInstanceDataToModel: function(formData, sInstanceId) {
@@ -1200,53 +762,7 @@ _loadSupplierNumbersAndPOData: function(accrualTable, typeOfParty) {
 },
 
 _searchSupplierByName: function(supplierName, typeOfParty) {
-    if (!supplierName || !typeOfParty) {
-        return Promise.resolve(null);
-    }
-    
-    var endpoint = this._getBusinessPartnerEndpoint(typeOfParty);
-    var filter = "";
-    
-    if (typeOfParty === "Customer") {
-        filter = "?$filter=CustomerName eq '" + encodeURIComponent(supplierName) + "'&$top=1";
-    } else if (typeOfParty === "Supplier") {
-        filter = "?$filter=SupplierName eq '" + encodeURIComponent(supplierName) + "'&$top=1";
-    } else {
-        return Promise.resolve(null);
-    }
-    
-    var url = endpoint + filter;
-    
-    return fetch(url, {
-        method: "GET",
-        headers: {
-            "Authorization": "Basic " + btoa(
-                this._businessPartnerConfig.Username + ":" + 
-                this._businessPartnerConfig.Password
-            ),
-            "Accept": "application/json"
-        }
-    })
-    .then(function(response) {
-        if (!response.ok) {
-            return null;
-        }
-        return response.json();
-    })
-    .then(function(data) {
-        if (data && data.d && data.d.results && data.d.results.length > 0) {
-            if (typeOfParty === "Customer") {
-                return data.d.results[0].Customer || null;
-            } else if (typeOfParty === "Supplier") {
-                return data.d.results[0].Supplier || null;
-            }
-        }
-        return null;
-    })
-    .catch(function(error) {
-        console.error("Error searching for supplier/customer:", error);
-        return null;
-    });
+    return WorkflowAPI.searchSupplierByName(supplierName, typeOfParty);
 },
 
 _fetchRelatedDataForAffiliate: function(sCompanyCode) {
@@ -1309,123 +825,6 @@ _fetchRelatedDataForAffiliate: function(sCompanyCode) {
         .finally(function() {
             sap.ui.core.BusyIndicator.hide();
         });
-},
-_getTaskInstanceByWorkflowId: function(workflowInstanceId, maxRetries, retryDelay) {
-    var that = this;
-    maxRetries = maxRetries || 10; // Default 10 retries
-    retryDelay = retryDelay || 2000; // Default 2 seconds between retries
-    var currentRetry = 0;
-    
-    var fetchTaskInstance = function() {
-        var url = that._taskInstanceConfig.baseEndpoint + "?workflowInstanceId=" + workflowInstanceId;
-        
-        console.log("Fetching task instances (Attempt " + (currentRetry + 1) + "/" + maxRetries + ")");
-        
-        return fetch(url, {
-            method: "GET",
-            headers: {
-                "Authorization": "Basic " + btoa(
-                    that._taskInstanceConfig.Username + ":" + 
-                    that._taskInstanceConfig.Password
-                ),
-                "Accept": "application/json"
-            }
-        })
-        .then(function(response) {
-            if (!response.ok) {
-                throw new Error("Failed to fetch task instances: " + response.status);
-            }
-            return response.json();
-        })
-        .then(function(data) {
-            console.log("Task instances received (Attempt " + (currentRetry + 1) + "):", data);
-            
-            // Filter for form_accrualSubmissionForm_2 with status READY
-            if (data && Array.isArray(data)) {
-                var readyForm = data.find(function(task) {
-                    return task.activityId === "form_accrualSubmissionForm_2" && 
-                           task.status === "READY";
-                });
-                
-                if (readyForm) {
-                    console.log("✓ Found READY form with ID:", readyForm.id);
-                    return readyForm.id;
-                }
-            }
-            
-            // If no READY form found and retries remaining, retry
-            currentRetry++;
-            if (currentRetry < maxRetries) {
-                console.log("No READY form found yet. Retrying in " + (retryDelay / 1000) + " seconds...");
-                return new Promise(function(resolve) {
-                    setTimeout(function() {
-                        resolve(fetchTaskInstance());
-                    }, retryDelay);
-                });
-            } else {
-                console.error("Max retries reached. No READY form found.");
-                throw new Error("No READY form found after " + maxRetries + " attempts");
-            }
-        });
-    };
-    
-    return fetchTaskInstance();
-},
-_patchTaskInstance: function(taskInstanceId, payload) {
-    var url = this._taskInstanceConfig.baseEndpoint + "/" + taskInstanceId;
-    
-    console.log("Patching task instance:", taskInstanceId);
-    console.log("PATCH URL:", url);
-    console.log("PATCH payload:", JSON.stringify(payload, null, 2));
-    
-    return fetch(url, {
-        method: "PATCH",
-        headers: {
-            "Authorization": "Basic " + btoa(
-                this._taskInstanceConfig.Username + ":" + 
-                this._taskInstanceConfig.Password
-            ),
-            "Accept": "application/json",
-            "Content-Type": "application/json"
-        },
-        body: JSON.stringify(payload)
-    })
-    .then(function(response) {
-        console.log("PATCH response status:", response.status);
-        
-        if (!response.ok) {
-            return response.text().then(function(errorText) {
-                throw new Error("PATCH failed (Status " + response.status + "): " + errorText);
-            });
-        }
-        
-        // Check if response has content
-        return response.text().then(function(text) {
-            console.log("PATCH response body:", text);
-            
-            // If response is empty or just whitespace, return success object
-            if (!text || text.trim() === '') {
-                console.log("PATCH successful - empty response body");
-                return { success: true, message: "Task instance patched successfully" };
-            }
-            
-            // Try to parse as JSON
-            try {
-                return JSON.parse(text);
-            } catch (e) {
-                console.warn("Response is not JSON, returning as text");
-                return { success: true, response: text };
-            }
-        });
-    })
-    .then(function(result) {
-        console.log("Task instance patched successfully:", result);
-        return result;
-    })
-    .catch(function(error) {
-        console.error("Error patching task instance:", error);
-        throw error;
-    });
 },
 
 _calculateFinanceApproval: function(oData) {
@@ -2087,17 +1486,6 @@ onAddRow: function() {
                 });
         },
 
-        _getBusinessPartnerEndpoint: function(typeOfParty) {
-            var baseUrl = this._businessPartnerConfig.baseEndpoint;
-            
-            if (typeOfParty === "Customer") {
-                return baseUrl + "/A_Customer";
-            } else if (typeOfParty === "Supplier") {
-                return baseUrl + "/A_Supplier";
-            } else {
-                return baseUrl + "/A_BusinessPartner";
-            }
-        },
 
         _fetchBusinessPartners: function(searchTerm) {
             var oModel = this.getView().getModel();
@@ -2442,7 +1830,7 @@ _validateCutoffDate: function() {
 
 _preparePayloadForProcessAutomation: function(oData, iStatus) {
     var payload = {
-        definitionId: this._processAutomationConfig.definitionId,
+        definitionId: "us10.e84e1793trial.infineumaccrual4.accrual_Process",
         context: {
             accrual: {
                 Affiliate: oData.affiliate || "",
@@ -2496,69 +1884,9 @@ _preparePayloadForProcessAutomation: function(oData, iStatus) {
     return payload;
 },
 
-        _getAccessToken: function() {
-            var config = this._processAutomationConfig.uaaConfig;
-            var tokenUrl = config.url + "/oauth/token";
-            
-            return fetch(tokenUrl, {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/x-www-form-urlencoded",
-                    "Authorization": "Basic " + btoa(config.clientId + ":" + config.clientSecret)
-                },
-                body: "grant_type=client_credentials"
-            })
-            .then(function(response) {
-                if (!response.ok) {
-                    throw new Error("Failed to get access token: " + response.status);
-                }
-                return response.json();
-            })
-            .then(function(data) {
-                return data.access_token;
-            })
-            .catch(function(error) {
-                console.error("Error getting access token:", error);
-                throw error;
-            });
-        },
-
-        _triggerWorkflow: function(payload) {
-            var that = this;
-            
-            return this._getAccessToken()
-                .then(function(accessToken) {
-                    console.log("Triggering workflow with payload:", JSON.stringify(payload, null, 2));
-                    
-                    return fetch(that._processAutomationConfig.apiEndpoint, {
-                        method: "POST",
-                        headers: {
-                            "Content-Type": "application/json",
-                            "Authorization": "Bearer " + accessToken
-                        },
-                        body: JSON.stringify(payload)
-                    });
-                })
-                .then(function(response) {
-                    if (!response.ok) {
-                        return response.text().then(function(errorText) {
-                            throw new Error("Workflow trigger failed: " + response.status + "\n" + errorText);
-                        });
-                    }
-                    return response.json();
-                })
-                .then(function(result) {
-                    console.log("Workflow triggered successfully:", result);
-                    return result;
-                })
-                .catch(function(error) {
-                    console.error("Error triggering workflow:", error);
-                    throw error;
-                });
-        },
-
         
-onSubmit: function() {
+onSubmit: function () {
+
     var that = this;
 
     var bHeaderValid = this._validateHeaderFields();
@@ -2572,116 +1900,135 @@ onSubmit: function() {
 
     var oModel = this.getView().getModel();
     var oData = oModel.getData();
-    var workflowInstanceId = null;
 
     sap.ui.core.BusyIndicator.show(0);
 
-    // Copy always creates a NEW workflow instance
-    var payload = this._preparePayloadForProcessAutomation(oData, 1);
+    var workflowInstanceId = null;
 
-    this._triggerWorkflow(payload)
-        .then(function(result) {
-            console.log("Workflow created successfully:", result);
-            workflowInstanceId = result.id;
+    WorkflowAPI.triggerWorkflow(
+        this._preparePayloadForProcessAutomation(oData, 1)
+    )
 
-            if (!workflowInstanceId) {
-                throw new Error("Workflow created but no instance ID returned");
-            }
+    .then(function(result){
 
-            console.log("Workflow Instance ID:", workflowInstanceId);
-            return that._getTaskInstanceByWorkflowId(workflowInstanceId, 10, 3000);
-        })
-        .then(function(taskInstanceId) {
-            if (!taskInstanceId) {
-                throw new Error("No READY form found after workflow creation");
-            }
+        console.log("Workflow created successfully:", result);
 
-            console.log("Found READY task instance ID:", taskInstanceId);
+        workflowInstanceId = result.id;
 
-            var patchPayload = that._preparePayloadForPatch(oData, 1);
-            return that._patchTaskInstance(taskInstanceId, patchPayload);
-        })
-        .then(function(result) {
-            sap.ui.core.BusyIndicator.hide();
+        if (!workflowInstanceId) {
+            throw new Error("Workflow created but no instance ID returned");
+        }
 
-            MessageBox.success(
-                "Request submitted successfully!",
-                {
-                    onClose: function() {
-                        var oRouter = that.getOwnerComponent().getRouter();
-                        oRouter.navTo("Dashboard");
-                    }
+        return WorkflowAPI.getTaskInstanceByWorkflowId(workflowInstanceId, 10, 3000);
+    })
+
+    .then(function(taskInstanceId){
+
+        if (!taskInstanceId) {
+            throw new Error("No READY form found after workflow creation");
+        }
+
+        console.log("Found READY task instance:", taskInstanceId);
+
+        return WorkflowAPI.patchTaskInstance(
+            taskInstanceId,
+            that._preparePayloadForPatch(oData, 1)
+        );
+    })
+
+    .then(function(){
+
+        sap.ui.core.BusyIndicator.hide();
+
+        MessageBox.success(
+            "Request submitted successfully!",
+            {
+                onClose: function () {
+                    that.getOwnerComponent().getRouter().navTo("Dashboard");
                 }
-            );
-        })
-        .catch(function(error) {
-            sap.ui.core.BusyIndicator.hide();
-            console.error("Submit workflow error:", error);
-            MessageBox.error("Failed to submit request:\n\n" + error.message);
-        });
+            }
+        );
+    })
+
+    .catch(function(error){
+
+        sap.ui.core.BusyIndicator.hide();
+
+        console.error("Submit workflow error:", error);
+
+        MessageBox.error("Failed to submit request:\n\n" + error.message);
+    });
 },
 
-onSaveAsDraft: function() {
+onSaveAsDraft: function () {
+
     var that = this;
 
-    var bHeaderValid = this._validateHeaderFields();
-    var bDateValid = this._validateCutoffDate();
-    var bTableValid = this._validateTableItems();
+    if (!this._validateHeaderFields() ||
+        !this._validateCutoffDate() ||
+        !this._validateTableItems()) {
 
-    if (!bHeaderValid || !bDateValid || !bTableValid) {
         MessageBox.error("Please fill in all required fields correctly");
         return;
     }
 
     var oModel = this.getView().getModel();
     var oData = oModel.getData();
-    var workflowInstanceId = null;
 
     sap.ui.core.BusyIndicator.show(0);
 
-    // Copy always creates a NEW workflow instance
-    var payload = this._preparePayloadForProcessAutomation(oData, 2);
+    var workflowInstanceId = null;
 
-    this._triggerWorkflow(payload)
-        .then(function(result) {
-            console.log("Workflow created successfully:", result);
-            workflowInstanceId = result.id;
+    WorkflowAPI.triggerWorkflow(
+        this._preparePayloadForProcessAutomation(oData, 2)
+    )
 
-            if (!workflowInstanceId) {
-                throw new Error("Workflow created but no instance ID returned");
+    .then(function(result){
+
+        workflowInstanceId = result.id;
+
+        if(!workflowInstanceId){
+            throw new Error("Workflow created but no instance ID returned");
+        }
+
+        return WorkflowAPI.getTaskInstanceByWorkflowId(workflowInstanceId,10,3000);
+
+    })
+
+    .then(function(taskInstanceId){
+
+        if(!taskInstanceId){
+            throw new Error("No READY form found after workflow creation");
+        }
+
+        return WorkflowAPI.patchTaskInstance(
+            taskInstanceId,
+            that._preparePayloadForPatch(oData,2)
+        );
+
+    })
+
+    .then(function(){
+
+        sap.ui.core.BusyIndicator.hide();
+
+        MessageBox.success("Request saved as draft successfully!",{
+            onClose:function(){
+                that.getOwnerComponent().getRouter().navTo("Dashboard");
             }
-
-            console.log("Workflow Instance ID:", workflowInstanceId);
-            return that._getTaskInstanceByWorkflowId(workflowInstanceId, 10, 3000);
-        })
-        .then(function(taskInstanceId) {
-            if (!taskInstanceId) {
-                throw new Error("No READY form found after workflow creation");
-            }
-
-            console.log("Found READY task instance ID:", taskInstanceId);
-
-            var patchPayload = that._preparePayloadForPatch(oData, 2);
-            return that._patchTaskInstance(taskInstanceId, patchPayload);
-        })
-        .then(function(result) {
-            sap.ui.core.BusyIndicator.hide();
-
-            MessageBox.success(
-                "Request saved as draft successfully!",
-                {
-                    onClose: function() {
-                        var oRouter = that.getOwnerComponent().getRouter();
-                        oRouter.navTo("Dashboard");
-                    }
-                }
-            );
-        })
-        .catch(function(error) {
-            sap.ui.core.BusyIndicator.hide();
-            console.error("Save as Draft workflow error:", error);
-            MessageBox.error("Failed to save draft:\n\n" + error.message);
         });
+
+    })
+
+    .catch(function(error){
+
+        sap.ui.core.BusyIndicator.hide();
+
+        console.error("Save as Draft workflow error:",error);
+
+        MessageBox.error("Failed to save draft:\n\n"+error.message);
+
+    });
 },
 
 onDMSFileSelected: function(oEvent) {
