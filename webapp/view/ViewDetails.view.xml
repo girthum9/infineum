@@ -5,21 +5,19 @@
     xmlns:core="sap.ui.core"
     xmlns:l="sap.ui.layout"
     xmlns:html="http://www.w3.org/1999/xhtml">
-    
+
     <Page id="page1" title="View Accrual Request" showNavButton="true" navButtonPress=".onNavBack">
         <customHeader>
             <Bar id="_IDGenBar2">
                 <contentMiddle>
                     <Title id="_IDGenTitle3" text="{/requestNo}" level="H1" />
-                    
                 </contentMiddle>
             </Bar>
         </customHeader>
         <content>
             <VBox id="_IDGenVBox4" class="sapUiSmallMargin">
-              
 
-                <!-- Header Section - Pure API Data -->
+                <!-- Request Information -->
                 <Panel id="_IDGenPanel1" headerText="Request Information" class="sapUiResponsiveMargin">
                     <f:SimpleForm id="headerForm1"
                         editable="false"
@@ -54,7 +52,7 @@
                     </f:SimpleForm>
                 </Panel>
 
-                <!-- Table Section - Pure API Table Data -->
+                <!-- Line Items -->
                 <Panel id="_IDGenPanel2" headerText="Line Items" class="sapUiResponsiveMargin">
                     <content>
                         <ScrollContainer id="_IDGenScrollContainer1" horizontal="true" vertical="false" height="auto" class="sapUiSmallMargin">
@@ -66,12 +64,13 @@
                                 class="sapUiResponsiveMargin">
                                 <columns>
                                     <Column id="_IDGenColumn16" width="13rem"><Text id="_IDGenText31" text="Supplier/Customer"/></Column>
+                                    <Column id="_IDGenColumn22" width="11rem"><Text id="_IDGenText37" text="Purchase Order Number"/></Column>
+                                    <Column id="_IDGenColumn100" width="11rem"><Text id="_IDGenText101" text="Purchase Order Line Item"/></Column>
                                     <Column id="_IDGenColumn17" width="13rem"><Text id="_IDGenText32" text="Description"/></Column>
                                     <Column id="_IDGenColumn18" width="9rem"><Text id="_IDGenText33" text="Currency"/></Column>
                                     <Column id="_IDGenColumn19" width="10rem"><Text id="_IDGenText34" text="Exclude Tax"/></Column>
                                     <Column id="_IDGenColumn20" width="11rem"><Text id="_IDGenText35" text="GL Account Code"/></Column>
                                     <Column id="_IDGenColumn21" width="10rem"><Text id="_IDGenText36" text="Credit/Debit"/></Column>
-                                    <Column id="_IDGenColumn22" width="11rem"><Text id="_IDGenText37" text="Purchase Order Number"/></Column>
                                     <Column id="_IDGenColumn23" width="9rem"><Text id="_IDGenText38" text="Cost Centre"/></Column>
                                     <Column id="_IDGenColumn24" width="11rem"><Text id="_IDGenText39" text="Internal Order"/></Column>
                                     <Column id="_IDGenColumn25" width="9rem"><Text id="_IDGenText40" text="WBS"/></Column>
@@ -86,12 +85,13 @@
                                     <ColumnListItem id="_IDGenColumnListItem1">
                                         <cells>
                                             <Text id="_IDGenText47" text="{supplier}"/>
+                                            <Text id="_IDGenText53" text="{poNumber}"/>
+                                            <Text id="_IDGenText102" text="{poLineItem}"/>
                                             <Text id="_IDGenText48" text="{description}"/>
                                             <Text id="_IDGenText49" text="{currency}"/>
                                             <Text id="_IDGenText50" text="{excludeTax}"/>
                                             <Text id="_IDGenText51" text="{glAccount}"/>
                                             <Text id="_IDGenText52" text="{creditDebit}"/>
-                                            <Text id="_IDGenText53" text="{poNumber}"/>
                                             <Text id="_IDGenText54" text="{costCentre}"/>
                                             <Text id="_IDGenText55" text="{internalOrder}"/>
                                             <Text id="_IDGenText56" text="{wbs}"/>
@@ -109,12 +109,70 @@
                     </content>
                 </Panel>
 
-                <!-- Additional Information -->
-                <Panel id="_IDGenPanel3" headerText="Additional Information" class="sapUiResponsiveMargin">
+                <!-- Supporting Documents (Read-Only) -->
+                <Panel id="supportingDocsPanel" headerText="Supporting Documents" class="sapUiResponsiveMargin">
                     <content>
-                        <VBox id="_IDGenVBox5" class="sapUiSmallMargin">
-                            <Label id="_IDGenLabel19" text="Approver Comments"/>
-                            <Text id="_IDGenText63" text="{/approverComments}"/>
+                        <VBox id="_IDGenVBox2" class="sapUiSmallMargin">
+
+                            <!-- No documents message -->
+                            <VBox id="noDocsBox"
+                                visible="{= ${/dmsDocuments} !== null &amp;&amp; ${/dmsDocuments/length} === 0 }">
+                                <MessageStrip
+                                    id="noDocsStrip"
+                                    text="No supporting documents attached to this request."
+                                    type="Information"
+                                    showIcon="true"
+                                    showCloseButton="false"
+                                    class="sapUiSmallMarginBottom"/>
+                            </VBox>
+
+                            <!-- Documents list -->
+                            <List id="vdDmsList"
+                                items="{/dmsDocuments}"
+                                noDataText="No supporting documents found"
+                                showSeparators="Inner">
+                                <items>
+                                    <CustomListItem id="_IDGenCustomListItem" type="Inactive">
+                                        <HBox id="_IDGenHBox7" alignItems="Center"
+                                              justifyContent="SpaceBetween"
+                                              class="sapUiSmallMarginBegin sapUiSmallMarginEnd sapUiTinyMarginTopBottom">
+
+                                            <!-- File icon + details -->
+                                            <HBox id="_IDGenHBox9" alignItems="Center">
+                                                <core:Icon id="_IDGenIcon"
+                                                    src="sap-icon://attachment"
+                                                    size="1.5rem"
+                                                    color="#0854a0"
+                                                    class="sapUiSmallMarginEnd"/>
+                                                <VBox id="_IDGenVBox3">
+                                                    <Text id="_IDGenText63" text="{fileName}"
+                                                          wrapping="false"
+                                                          class="sapUiTinyMarginBottom"
+                                                          renderWhitespace="false"/>
+                                                    <HBox id="_IDGenHBox10">
+                                                        <ObjectStatus id="_IDGenObjectStatus1"
+                                                            text="{fileType}"
+                                                            state="Information"
+                                                            class="sapUiTinyMarginEnd"/>
+                                                        <Text id="_IDGenText95" text="·" class="sapUiTinyMarginEnd sapUiTinyMarginBegin"/>
+                                                        <Text id="_IDGenText96" text="{fileSize}" class="sapUiTinyMarginEnd"/>
+                                                        <Text id="_IDGenText97" text="·" class="sapUiTinyMarginEnd sapUiTinyMarginBegin"/>
+                                                        <Text id="_IDGenText98" text="Uploaded: {uploadedOn}"/>
+                                                    </HBox>
+                                                </VBox>
+                                            </HBox>
+
+                                            <!-- Download button only -->
+                                            <Button id="_IDGenButton6"
+                                                icon="sap-icon://download"
+                                                type="Transparent"
+                                                tooltip="Download"
+                                                press=".onDMSDownload"/>
+                                        </HBox>
+                                    </CustomListItem>
+                                </items>
+                            </List>
+
                         </VBox>
                     </content>
                 </Panel>
@@ -122,11 +180,13 @@
                 <!-- Action Buttons -->
                 <Toolbar id="_IDGenToolbar2" class="sapUiSmallMarginTop">
                     <ToolbarSpacer id="_IDGenToolbarSpacer4"/>
-                    <Button id="_IDGenButton7" text="Back to Dashboard" 
-                            press=".onNavBack" 
-                            icon="sap-icon://home" 
+                    <Button id="_IDGenButton7"
+                            text="Back to Dashboard"
+                            press=".onNavBack"
+                            icon="sap-icon://home"
                             type="Emphasized"/>
                 </Toolbar>
+
             </VBox>
         </content>
     </Page>

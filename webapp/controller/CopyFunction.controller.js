@@ -1237,7 +1237,7 @@ onAddRow: function() {
         },
 
         onSelectionChange: function(oEvent) {
-            var oTable = this.byId("itemsTable");
+            var oTable = this.byId("Copy_itemsTable");
             var aSelectedItems = oTable.getSelectedItems();
             var oModel = this.getView().getModel();
             
@@ -1246,7 +1246,7 @@ onAddRow: function() {
 
         onDeleteSelected: function() {
             var that = this;
-            var oTable = this.byId("itemsTable");
+            var oTable = this.byId("Copy_itemsTable");
             var aSelectedItems = oTable.getSelectedItems();
             var oModel = this.getView().getModel();
             var aItems = oModel.getProperty("/items");
@@ -1564,103 +1564,101 @@ onAddRow: function() {
             });
         },
 
-        onSupplierSuggest: function(oEvent) {
-            var that = this;
-            var sSuggestValue = oEvent.getParameter("suggestValue");
-            var oSource = oEvent.getSource();
-            var oModel = this.getView().getModel();
-            var sTypeOfParty = oModel.getProperty("/typeOfParty");
-            
-            if (!sTypeOfParty) {
-                MessageBox.warning("Please select Type of Party first");
-                return;
-            }
-            
-            if (!sSuggestValue || sSuggestValue.length <= 0) {
-                return;
-            }
-            
-            oSource.setBusy(true);
-            
-            this._fetchBusinessPartners(sSuggestValue)
-                .then(function(aPartners) {
-                    oSource.destroySuggestionItems();
-                    
-                    aPartners.forEach(function(partner) {
-                        oSource.addSuggestionItem(
-                            new sap.ui.core.Item({
-                                key: partner.key,
-                                text: partner.fullText
-                            })
-                        );
-                    });
-                    
-                    oSource.setBusy(false);
-                })
-                .catch(function(error) {
-                    console.error("Error in suggestion:", error);
-                    oSource.setBusy(false);
-                });
-        },
+onSupplierSuggest: function(oEvent) {
+    var that = this;
+    var sSuggestValue = oEvent.getParameter("suggestValue");
+    var oSource = oEvent.getSource();
+    var oModel = this.getView().getModel();
+    var sTypeOfParty = oModel.getProperty("/typeOfParty");
+
+    if (!sTypeOfParty) {
+        MessageBox.warning("Please select Type of Party first");
+        return;
+    }
+
+    if (!sSuggestValue || sSuggestValue.length <= 0) {
+        return;
+    }
+
+    oSource.setBusy(true);
+
+    // Use WorkflowAPI.fetchBusinessPartners instead of this._fetchBusinessPartners
+    WorkflowAPI.fetchBusinessPartners(sSuggestValue, sTypeOfParty)
+        .then(function(aPartners) {
+            oSource.destroySuggestionItems();
+
+            aPartners.forEach(function(partner) {
+                oSource.addSuggestionItem(
+                    new sap.ui.core.Item({
+                        key: partner.key,
+                        text: partner.fullText
+                    })
+                );
+            });
+        })
+        .catch(function(error) {
+            console.error("Error in suggestion:", error);
+        })
+        .finally(function() {
+            oSource.setBusy(false);
+        });
+},
 
 onSupplierSuggestionSelected: function(oEvent) {
     var that = this;
     var oSelectedItem = oEvent.getParameter("selectedItem");
-    
-    if (oSelectedItem) {
-        var sSelectedText = oSelectedItem.getText();
-        var oSource = oEvent.getSource();
-        var oContext = oSource.getBindingContext();
-        var oModel = this.getView().getModel();
-        
-        var parts = sSelectedText.split(" - ");
-        var supplierCustomerNumber = parts[0];
-        var name = parts[1] || sSelectedText;
-        
-        oSource.setValue(name);
-        
-        var sTypeOfParty = oModel.getProperty("/typeOfParty");
-        
-        // ADD THIS LINE - Store the first supplier/customer number at header level
-        if (!oModel.getProperty("/csNumber")) {
-            oModel.setProperty("/csNumber", supplierCustomerNumber);
-        }
-        
-        if (oContext) {
-            var sPath = oContext.getPath();
-            
-            oModel.setProperty(sPath + "/supplierNumber", supplierCustomerNumber);
-            
-            oSource.setBusy(true);
-            
-            this._fetchGLAccountForSupplierCustomer(
-                supplierCustomerNumber, 
-                sTypeOfParty
-            )
-            .then(function(glAccount) {
-                if (glAccount) {
-                    oModel.setProperty(sPath + "/glAccount", glAccount);
-                    MessageToast.show("GL Account " + glAccount + " auto-populated");
-                }
-                
-                if (sTypeOfParty === "Supplier") {
-                    return that._fetchPurchaseOrders(supplierCustomerNumber);
-                }
-                return [];
-            })
-            .then(function(aPurchaseOrders) {
-                if (sTypeOfParty === "Supplier") {
-                    oModel.setProperty(sPath + "/purchaseOrders", aPurchaseOrders);
-                    
-                    if (aPurchaseOrders.length > 0) {
-                        console.log("Loaded " + aPurchaseOrders.length + " purchase orders");
-                    }
-                }
-            })
-            .finally(function() {
-                oSource.setBusy(false);
-            });
-        }
+
+    if (!oSelectedItem) return;
+
+    var sSelectedText = oSelectedItem.getText();
+    var oSource = oEvent.getSource();
+    var oContext = oSource.getBindingContext();
+    var oModel = this.getView().getModel();
+
+    var parts = sSelectedText.split(" - ");
+    var supplierCustomerNumber = parts[0];
+    var name = parts[1] || sSelectedText;
+
+    oSource.setValue(name);
+
+    var sTypeOfParty = oModel.getProperty("/typeOfParty");
+
+    if (!oModel.getProperty("/csNumber")) {
+        oModel.setProperty("/csNumber", supplierCustomerNumber);
+    }
+
+    if (oContext) {
+        var sPath = oContext.getPath();
+        oModel.setProperty(sPath + "/supplierNumber", supplierCustomerNumber);
+        oSource.setBusy(true);
+
+        // Use WorkflowAPI methods instead of local fetch methods
+        WorkflowAPI.fetchGLAccountForSupplierCustomer(
+            supplierCustomerNumber,
+            sTypeOfParty,
+            oModel.getProperty("/companyCode")
+        )
+        .then(function(glAccount) {
+            if (glAccount) {
+                oModel.setProperty(sPath + "/glAccount", glAccount);
+                MessageToast.show("GL Account " + glAccount + " auto-populated");
+            }
+            if (sTypeOfParty === "Supplier") {
+                return WorkflowAPI.fetchPurchaseOrders(supplierCustomerNumber);
+            }
+            return [];
+        })
+        .then(function(aPurchaseOrders) {
+            if (sTypeOfParty === "Supplier") {
+                oModel.setProperty(sPath + "/purchaseOrders", aPurchaseOrders);
+            }
+        })
+        .catch(function(error) {
+            console.error("Error in supplier selection:", error);
+        })
+        .finally(function() {
+            oSource.setBusy(false);
+        });
     }
 },
 
