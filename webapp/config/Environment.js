@@ -2,6 +2,6 @@ sap.ui.define([], function () {
     "use strict";
 
     return {
-        CURRENT: "DEV"   // DEV | QA | PRD
+        CURRENT: "QA"   // DEV | QA | PRD
     };
 });

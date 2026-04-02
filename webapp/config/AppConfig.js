@@ -61,15 +61,15 @@ sap.ui.define([
             apiHost: "https://is-apim-qa.test01.apimanagement.eu20.hana.ondemand.com",
 
             credentials: {
-                username: "QA_USERNAME",
-                password: "QA_PASSWORD"
+                username: "S_DS5100_API",
+                password: "TuaWE*W'2]78B9eh"
             },
 
             workflowServicePath: "/ZBTP_HYPERAUTOMATION_SERVICES_SRV",
             workflowInstancePath: "/public/workflow/rest/v1/workflow-instances",
             taskInstancePath: "/public/workflow/rest/v1/task-instances",
 
-            businessPartnerPath: "/qa/API_BUSINESS_PARTNER",
+            businessPartnerPath: "/API_BUSINESS_PARTNER",
             companyCodePath: "/C_COMPANYCODEVALUEHELPPROJ_CDS/C_CompanyCodeValueHelpProj",
             glAccountPath: "/C_GLACCOUNTVALUEHELP_CDS/C_GLAccountValueHelp",
             purchaseOrderPath: "/C_PURCHASEORDER_FS_SRV/C_PurchaseOrderFs",
@@ -88,20 +88,20 @@ sap.ui.define([
 
             auth: {
                 uaa: {
-                    url: "QA_UAA_URL",
-                    clientId: "QA_CLIENT_ID",
-                    clientSecret: "QA_CLIENT_SECRET"
+                    url: "https://s4-quality-3agj10mg.authentication.eu20.hana.ondemand.com",
+                    clientId: "sb-9bb2c7bd-674a-47ff-9bc9-7de79c22968d!b76255|xsuaa!b47942",
+                    clientSecret: "ccf3884d-caad-4602-8399-0b1f5b2b9cbe$7SafUTzHfkF6jWhVOr5cwYXHxYPjxhExRozHld0DKG4="
                 },
                 dms: {
-                    repositoryId: "QA_REPOSITORY_ID",
-                    clientId: "QA_DMS_CLIENT_ID",
-                    clientSecret: "QA_DMS_CLIENT_SECRET",
-                    tokenUrl: "QA_DMS_TOKEN_URL"
+                    repositoryId: "414c14fb-8265-47c8-9e05-d9cbb46df57f",
+                    clientId: "sb-0b07ab86-da06-48c2-aaff-cd70c3986dde!b69304|sdm-di-DocumentManagement-sdm_integration!b873",
+                    clientSecret: "e54bee4d-305a-4b5a-bfd3-fcdb7154dc35$wrq9Ite3DTvTUTeCKfK_gbBeJy9sBdU39JKWTNfk-LM=",
+                    tokenUrl: "https://development-zce2p8yp.authentication.eu20.hana.ondemand.com/oauth/token"
                 }
             },
 
             processAutomation: {
-                definitionId: "qa.accrual_Process"
+                definitionId: "us10.e84e1793trial.infineumaccrual4.accrual_Process"
             }
 
         },
