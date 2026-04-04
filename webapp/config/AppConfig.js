@@ -31,7 +31,7 @@ sap.ui.define([
             segmentPath: "/MD_PRODUCT_OP_SRV/C_ProductObjPgSalesOrder",
 
             dashboard: {
-                accrualApiPath: "/ZBTP_HYPERAUTOMATION_SERVICES_SRV/AccuralsSet",
+                accrualApiPath: "/ZBTP_HYPERAUTOMATION_SERVICES_SRV/AccrualsSet",
                 recallApiPath: "/http/Accrual/Process"
             },
 
@@ -82,7 +82,7 @@ sap.ui.define([
             segmentPath: "/MD_PRODUCT_OP_SRV/C_ProductObjPgSalesOrder",
 
             dashboard: {
-                accrualApiPath: "/ZBTP_HYPERAUTOMATION_SERVICES_SRV/AccuralsSet",
+                accrualApiPath: "/ZBTP_HYPERAUTOMATION_SERVICES_SRV/AccrualsSet",
                 recallApiPath: "/http/Accrual/Process"
             },
 
