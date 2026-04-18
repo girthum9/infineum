@@ -670,6 +670,44 @@ getBusinessPartnerEndpoint: function(typeOfParty) {
             .catch(function () { return null; });
         },
 
+
+
+        fetchGLAccountsByRange: function (companyCode, fromGL, toGL) {
+    if (!companyCode) return Promise.resolve([]);
+
+    var url = this._glAccountConfig.apiEndpoint +
+        "?$filter=CompanyCode eq '" + companyCode +
+        "' and GLAccount ge '" + fromGL +
+        "' and GLAccount le '" + toGL + "'";
+
+    console.log("GL API URL:", url);
+
+    return fetch(url, {
+        method: "GET",
+        headers: {
+            "Authorization": this._getAuthHeader(
+                this._glAccountConfig.username,
+                this._glAccountConfig.password
+            ),
+            "Accept": "application/json"
+        }
+    })
+    .then(function (r) {
+        if (!r.ok) throw new Error("Failed: " + r.status);
+        return r.json();
+    })
+    .then(function (data) {
+        if (!data.d || !data.d.results) return [];
+
+        return data.d.results.map(function (a) {
+            return {
+                GLAccount: a.GLAccount,
+                displayText: a.GLAccount + " - " + (a.GLAccountName || "")
+            };
+        });
+    });
+},
+
         // ─── DMS ─────────────────────────────────────────────────────────────────────
 
         getDMSToken: function () {
@@ -795,7 +833,9 @@ getBusinessPartnerEndpoint: function(typeOfParty) {
                 });
             });
         },
-fetchDMSFilesFromFolder: function (sSupportingDocuments) {
+
+        
+        fetchDMSFilesFromFolder: function (sSupportingDocuments) {
     if (!sSupportingDocuments) return Promise.resolve([]);
 
     // Extract folder ID from "spa-res:cmis:folderid:<folderId>"
@@ -806,9 +846,6 @@ fetchDMSFilesFromFolder: function (sSupportingDocuments) {
     var base = cfg.baseUrl;
     var repo = cfg.repositoryId;
 
-    // Use the Download endpoint with cmisselector=children to list folder contents
-    // This is the correct CMIS endpoint for listing children of a folder
-    // URL: https://.../Download/browser/{repo}/root?cmisselector=children&objectId={folderId}
     var sFolderChildrenUrl = base + "/Download/browser/" + repo + "/root"
         + "?cmisselector=children&objectId=" + encodeURIComponent(sFolderId);
 
@@ -824,8 +861,6 @@ fetchDMSFilesFromFolder: function (sSupportingDocuments) {
         })
         .then(function (r) {
             if (!r.ok) throw new Error("Folder children fetch failed: " + r.status);
-
-            // Check content type before parsing as JSON
             var contentType = r.headers.get("content-type") || "";
             if (!contentType.includes("application/json")) {
                 throw new Error("Response is not JSON. Content-Type: " + contentType);
@@ -835,80 +870,91 @@ fetchDMSFilesFromFolder: function (sSupportingDocuments) {
         .then(function (data) {
             console.log("Folder children raw response:", JSON.stringify(data));
 
-            // CMIS children response format:
-            // { objects: [{ object: { succinctProperties: {...} OR properties: {...} } }] }
             var aObjects = (data.objects || []);
             if (!aObjects.length) {
                 console.warn("No objects found in folder:", sFolderId);
                 return [];
             }
 
-            // Take only the first/latest file
-            var firstObject = aObjects[0];
-            var oObject = firstObject.object || firstObject;
+            // ── Map ALL objects in the folder ─────────────────────────────
+            var aParsed = aObjects.map(function (oEntry) {
+                var oObject = oEntry.object || oEntry;
 
-            // Try succinctProperties first (used when succinct=true was passed during upload)
-            var succinctProps = oObject.succinctProperties;
-            // Then try regular properties format
-            var regularProps = oObject.properties;
+                var succinctProps = oObject.succinctProperties;
+                var regularProps  = oObject.properties;
 
-            var sFileObjectId, sFileName, nFileSize, nCreationDate;
+                var sFileObjectId, sFileName, sMimeType, nFileSize, nCreationDate, sFolderIdInner;
 
-            if (succinctProps) {
-                sFileObjectId = succinctProps["cmis:objectId"] || "";
-                sFileName     = succinctProps["cmis:contentStreamFileName"]
-                             || succinctProps["cmis:name"]
-                             || "Unknown File";
-                nFileSize     = succinctProps["cmis:contentStreamLength"] || 0;
-                nCreationDate = succinctProps["cmis:creationDate"] || 0;
+                if (succinctProps) {
+                    sFileObjectId  = succinctProps["cmis:objectId"] || "";
+                    sFileName      = succinctProps["cmis:contentStreamFileName"]
+                                  || succinctProps["cmis:name"]
+                                  || "Unknown File";
+                    sMimeType      = succinctProps["cmis:contentStreamMimeType"] || "";
+                    nFileSize      = succinctProps["cmis:contentStreamLength"] || 0;
+                    nCreationDate  = succinctProps["cmis:creationDate"] || 0;
+                    sFolderIdInner = (succinctProps["sap:parentIds"] || [])[0] || sFolderId;
 
-            } else if (regularProps) {
-                sFileObjectId = (regularProps["cmis:objectId"] && regularProps["cmis:objectId"].value) || "";
-                sFileName     = (regularProps["cmis:contentStreamFileName"] && regularProps["cmis:contentStreamFileName"].value)
-                             || (regularProps["cmis:name"] && regularProps["cmis:name"].value)
-                             || "Unknown File";
-                nFileSize     = (regularProps["cmis:contentStreamLength"] && regularProps["cmis:contentStreamLength"].value) || 0;
-                nCreationDate = (regularProps["cmis:creationDate"] && regularProps["cmis:creationDate"].value) || 0;
-            } else {
-                console.error("No properties found in object:", JSON.stringify(oObject));
-                return [];
-            }
+                } else if (regularProps) {
+                    sFileObjectId  = (regularProps["cmis:objectId"]              && regularProps["cmis:objectId"].value)              || "";
+                    sFileName      = (regularProps["cmis:contentStreamFileName"] && regularProps["cmis:contentStreamFileName"].value)
+                                  || (regularProps["cmis:name"]                  && regularProps["cmis:name"].value)
+                                  || "Unknown File";
+                    sMimeType      = (regularProps["cmis:contentStreamMimeType"] && regularProps["cmis:contentStreamMimeType"].value) || "";
+                    nFileSize      = (regularProps["cmis:contentStreamLength"]   && regularProps["cmis:contentStreamLength"].value)   || 0;
+                    nCreationDate  = (regularProps["cmis:creationDate"]          && regularProps["cmis:creationDate"].value)          || 0;
+                    sFolderIdInner = ((regularProps["sap:parentIds"] && regularProps["sap:parentIds"].value) || [])[0] || sFolderId;
 
-            if (!sFileObjectId) {
-                console.error("No cmis:objectId found in object properties");
-                return [];
-            }
+                } else {
+                    console.error("No properties found in object:", JSON.stringify(oObject));
+                    return null;
+                }
 
-            // Format file type
-            var aParts = sFileName.split(".");
-            var sFileType = aParts.length > 1 ? aParts[aParts.length - 1].toUpperCase() : "FILE";
+                if (!sFileObjectId) {
+                    console.error("No cmis:objectId found in object properties");
+                    return null;
+                }
 
-            // Format file size
-            var sFileSizeFormatted;
-            if (nFileSize < 1024) {
-                sFileSizeFormatted = nFileSize + " B";
-            } else if (nFileSize < 1048576) {
-                sFileSizeFormatted = Math.round(nFileSize / 1024) + " KB";
-            } else {
-                sFileSizeFormatted = Math.round(nFileSize / 1048576 * 10) / 10 + " MB";
-            }
+                // ── File type: prefer MIME, fallback to extension ──────────
+                var sFileType = "FILE";
+                if      (sMimeType.indexOf("spreadsheetml") > -1)  { sFileType = "XLSX"; }
+                else if (sMimeType.indexOf("ms-excel")      > -1)  { sFileType = "XLS";  }
+                else if (sMimeType.indexOf("pdf")           > -1)  { sFileType = "PDF";  }
+                else if (sMimeType.indexOf("ms-outlook")    > -1)  { sFileType = "MSG";  }
+                else if (sMimeType.indexOf("msword")        > -1)  { sFileType = "DOC";  }
+                else if (sMimeType.indexOf("wordprocessing") > -1) { sFileType = "DOCX"; }
+                else if (sMimeType.indexOf("png")           > -1)  { sFileType = "PNG";  }
+                else if (sMimeType.indexOf("jpeg")          > -1)  { sFileType = "JPG";  }
+                else {
+                    var aParts = sFileName.split(".");
+                    sFileType = aParts.length > 1 ? aParts[aParts.length - 1].toUpperCase() : "FILE";
+                }
 
-            // Format date
-            var sUploadedOn = nCreationDate
-                ? new Date(nCreationDate).toLocaleDateString()
-                : new Date().toLocaleDateString();
+                // ── File size ─────────────────────────────────────────────
+                var sFileSizeFormatted;
+                if      (nFileSize < 1024)    { sFileSizeFormatted = nFileSize + " B"; }
+                else if (nFileSize < 1048576) { sFileSizeFormatted = Math.round(nFileSize / 1024) + " KB"; }
+                else                          { sFileSizeFormatted = Math.round(nFileSize / 1048576 * 10) / 10 + " MB"; }
 
-            var aResult = [{
-                objectId:   sFileObjectId,
-                fileName:   sFileName,
-                fileType:   sFileType,
-                fileSize:   sFileSizeFormatted,
-                uploadedOn: sUploadedOn,
-                folderId:   sFolderId
-            }];
+                // ── Upload date ───────────────────────────────────────────
+                var sUploadedOn = nCreationDate
+                    ? new Date(nCreationDate).toLocaleDateString()
+                    : new Date().toLocaleDateString();
 
-            console.log("DMS file parsed successfully:", JSON.stringify(aResult));
-            return aResult;
+                return {
+                    objectId  : sFileObjectId,
+                    fileName  : sFileName,
+                    fileType  : sFileType,
+                    fileSize  : sFileSizeFormatted,
+                    uploadedOn: sUploadedOn,
+                    folderId  : sFolderIdInner
+                };
+            }).filter(function (doc) {
+                return doc !== null; // drop any entries that failed to parse
+            });
+
+            console.log("DMS files parsed successfully (" + aParsed.length + "):", JSON.stringify(aParsed));
+            return aParsed;
         })
         .catch(function (error) {
             console.error("WorkflowAPI: Error fetching DMS files from folder:", error);

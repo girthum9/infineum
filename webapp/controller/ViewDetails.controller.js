@@ -115,6 +115,7 @@ sap.ui.define([
                                   oAct2, "Requesttype",     oAct1, "Requesttype"),
 
                 typeOfParty: pick(oSrc,  "typeOfParty",     oSrc,  "Partytype"),
+                debitGLType: pick(oSrc, "debitGLType", "DebitGLType"),
 
                 status     : this._getStatusText(
                                  sRawStatus ||
@@ -167,29 +168,71 @@ sap.ui.define([
 
         // ─── DMS (READ-ONLY) ──────────────────────────────────────────────────────────
 
-        _loadDMSAttachments: function (sSupportingDocsRef, oModel) {
-            WorkflowAPI.fetchDMSFilesFromFolder(sSupportingDocsRef)
-                .then(function (aDMSFiles) {
-                    if (aDMSFiles && aDMSFiles.length > 0) {
-                        var aMapped = aDMSFiles.map(function (doc) {
-                            return {
-                                objectId  : doc.objectId   || "",
-                                fileName  : doc.fileName   || "",
-                                fileType  : doc.fileType   || "",
-                                fileSize  : doc.fileSize   || "",
-                                uploadedOn: doc.uploadedOn || "",
-                                folderId  : doc.folderId   || ""
-                            };
-                        });
-                        oModel.setProperty("/dmsDocuments", aMapped);
-                        oModel.updateBindings(true);
-                    }
-                })
-                .catch(function (error) {
-                    console.error("Error loading supporting documents:", error);
-                    MessageToast.show("Could not load supporting documents");
-                });
-        },
+_loadDMSAttachments: function (sSupportingDocsRef, oModel) {
+    WorkflowAPI.fetchDMSFilesFromFolder(sSupportingDocsRef)
+        .then(function (oRawResponse) {
+
+            // Support both pre-mapped arrays AND raw CMIS { objects: [...] } responses
+            var aObjects = Array.isArray(oRawResponse)
+                ? oRawResponse
+                : (oRawResponse && oRawResponse.objects) || [];
+
+            if (!aObjects.length) { return; }
+
+            var aMapped = aObjects.map(function (oEntry) {
+                // Handle pre-mapped flat object  (already processed by WorkflowAPI)
+                if (oEntry.fileName || oEntry.objectId) { return oEntry; }
+
+                // Handle raw CMIS structure: { object: { properties: { ... } } }
+                var props = (oEntry.object && oEntry.object.properties) || {};
+
+                var getProp = function (key) {
+                    return (props[key] && props[key].value !== undefined)
+                        ? props[key].value
+                        : "";
+                };
+
+                var rawName  = getProp("cmis:contentStreamFileName") || getProp("cmis:name");
+                var mimeType = getProp("cmis:contentStreamMimeType");
+                var sizeBytes = getProp("cmis:contentStreamLength");
+                var folderId = (getProp("sap:parentIds") || [])[0] || "";
+
+                // Derive a clean display name (strip timestamp prefix like "1776445920909_")
+                var displayName = rawName.replace(/^\d+_/, "");
+
+                // Convert bytes → KB string
+                var fileSizeKB = sizeBytes
+                    ? (Math.round(sizeBytes / 1024 * 10) / 10) + " KB"
+                    : "";
+
+                // Format creation date from epoch ms
+                var creationEpoch = getProp("cmis:creationDate");
+                var uploadedOn = "";
+                if (creationEpoch) {
+                    var d = new Date(creationEpoch);
+                    uploadedOn = d.toLocaleDateString("en-GB"); // DD/MM/YYYY
+                }
+
+                return {
+                    objectId  : getProp("cmis:objectId"),
+                    fileName  : displayName,
+                    fileType  : mimeType,
+                    fileSize  : fileSizeKB,
+                    uploadedOn: uploadedOn,
+                    folderId  : folderId
+                };
+            }).filter(function (doc) {
+                return !!doc.objectId; // drop any empty entries
+            });
+
+            oModel.setProperty("/dmsDocuments", aMapped);
+            oModel.updateBindings(true);
+        })
+        .catch(function (error) {
+            console.error("Error loading supporting documents:", error);
+            MessageToast.show("Could not load supporting documents");
+        });
+},
 
         // ─── DOWNLOAD ONLY (no upload / delete on ViewDetails) ───────────────────────
 

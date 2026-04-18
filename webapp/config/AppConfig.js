@@ -10,11 +10,11 @@ sap.ui.define([
             apiHost: "https://is-apim-dev.test01.apimanagement.eu20.hana.ondemand.com",
 
             credentials: {
-                username: "S_DS4130_API",
-                password: "A7y2?HQR9=5%C!05"
+                username: "S_SS4130_API",
+                password: 'NI^X@B>s1bmc3vr"'
             },
 
-            workflowServicePath: "/ZBTP_HYPERAUTOMATION_SERVICES_SRV",
+            workflowServicePath: "/ZBTP_HYPERAUTO_SERVICE_SRV",
             workflowInstancePath: "/public/workflow/rest/v1/workflow-instances",
             taskInstancePath: "/public/workflow/rest/v1/task-instances",
 
@@ -31,7 +31,7 @@ sap.ui.define([
             segmentPath: "/MD_PRODUCT_OP_SRV/C_ProductObjPgSalesOrder",
 
             dashboard: {
-                accrualApiPath: "/ZBTP_HYPERAUTOMATION_SERVICES_SRV/AccrualsSet",
+                accrualApiPath: "/ZBTP_HYPERAUTO_SERVICE_SRV/AccrualsSet",
                 recallApiPath: "/http/Accrual/Process"
             },
 
@@ -61,11 +61,11 @@ sap.ui.define([
             apiHost: "https://is-apim-qa.test01.apimanagement.eu20.hana.ondemand.com",
 
             credentials: {
-                username: "S_DS5100_API",
-                password: "TuaWE*W'2]78B9eh"
+                username: "S_DS4130_API",
+                password: "A7y2?HQR9=5%C!05"
             },
 
-            workflowServicePath: "/ZBTP_HYPERAUTOMATION_SERVICES_SRV",
+            workflowServicePath: "/ZBTP_HYPERAUTO_SERVICE_SRV",
             workflowInstancePath: "/public/workflow/rest/v1/workflow-instances",
             taskInstancePath: "/public/workflow/rest/v1/task-instances",
 
@@ -82,7 +82,7 @@ sap.ui.define([
             segmentPath: "/MD_PRODUCT_OP_SRV/C_ProductObjPgSalesOrder",
 
             dashboard: {
-                accrualApiPath: "/ZBTP_HYPERAUTOMATION_SERVICES_SRV/AccrualsSet",
+                accrualApiPath: "/ZBTP_HYPERAUTO_SERVICE_SRV/AccrualsSet",
                 recallApiPath: "/http/Accrual/Process"
             },
 

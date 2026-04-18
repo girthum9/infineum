@@ -20,7 +20,7 @@ onInit: function() {
         companyCode: "",
         requestedBy: sEmail || "",
         approvedBy: "",
-        requestType: "",
+        accrualType: "",
         typeOfParty: "",
         csNumber: "",
         selectedItemsCount: 0,
@@ -509,37 +509,64 @@ _loadInstanceData: function(sInstanceId) {
 },
 
 _mapInstanceDataToModel: function(formData, sInstanceId) {
+
     var that = this;
     var oModel = this.getView().getModel();
-    
+
     console.log("Mapping form data to model:", formData);
-    
+
     // Mark as edit mode
     oModel.setProperty("/isEditMode", true);
     oModel.setProperty("/instanceId", sInstanceId);
-    
-    // Helper function to get value with fallback for different casings
+
+    // Helper function
     var getValue = function(obj, key1, key2, key3) {
         return obj[key1] || obj[key2] || obj[key3] || "";
     };
-    
-    // Map header fields - handle both lowercase and uppercase field names
+
+    // ───────────────── HEADER MAPPING ─────────────────
+
     oModel.setProperty("/affiliate", getValue(formData, "affiliate", "Affiliate"));
     oModel.setProperty("/companyCode", getValue(formData, "companyCode", "CompanyCode"));
     oModel.setProperty("/nameAccrual", getValue(formData, "nameYourAccrual", "NameYourAccrual"));
     oModel.setProperty("/requestedBy", getValue(formData, "requestedBy", "RequestedBy"));
     oModel.setProperty("/approvedBy", getValue(formData, "approvedBy", "ApprovedBy"));
     oModel.setProperty("/cutoffDate", getValue(formData, "accrualCutOffDate", "AccrualCutOffDate"));
-    oModel.setProperty("/requestType", getValue(formData, "typeOfRequest", "TypeofRequest"));
-    oModel.setProperty("/typeOfParty", getValue(formData, "typeOfParty", "Partytype"));
-    
-    // Map line items - check for different table names
+
+    // ✅ NEW FIELD (Accrual / Reclass)
+    var sAccrualTypeRaw =
+        formData["typeOfRequest_1"] || 
+        "";
+
+    var sAccrualTypeKey = oAccrualTypeMap[sAccrualTypeRaw] || sAccrualTypeRaw;
+
+    oModel.setProperty("/accrualType", sAccrualTypeKey);
+    oModel.setProperty("/requestType", sAccrualTypeKey);
+
+    // ✅ EXISTING (Accrual Type → Commission, Rebate...)
+    oModel.setProperty("/requestType",
+        getValue(formData, "typeOfAccrual", "TypeofRequest", "requestType")
+    );
+
+    oModel.setProperty("/typeOfParty",
+        getValue(formData, "typeOfParty", "Partytype")
+    );
+
+    // ───────────────── GL TYPE ─────────────────
+
+    var sGLType = getValue(formData, "debitGLType", "DebitGLType");
+    oModel.setProperty("/glType", sGLType);
+
+    // ───────────────── LINE ITEMS ─────────────────
+
     var accrualTable = formData.accrual_Table || formData.Accrual_Table || [];
-    
+
     console.log("Accrual table data:", accrualTable);
-    
+
     if (accrualTable && accrualTable.length > 0) {
+
         var aItems = accrualTable.map(function(item) {
+
             return {
                 supplier: getValue(item, "supplierCustomer", "SupplierCustomer"),
                 supplierNumber: "",
@@ -548,7 +575,6 @@ _mapInstanceDataToModel: function(formData, sInstanceId) {
                 excludeTax: getValue(item, "excludeTax", "ExcludeTax"),
                 glAccount: getValue(item, "gLAccountCode", "GLAccountCode"),
                 creditDebit: getValue(item, "creditDebitIndicator", "CreditDebitIndicator"),
-                // FIX: Purchase Order fields with all possible variations
                 poNumber: getValue(item, "purchaseOrderNumber", "PurchaseOrderNumber"),
                 poLineItem: getValue(item, "purchaseOrderLineItem", "PurchaseOrderLineItem"),
                 costCentre: getValue(item, "costCentre", "CostCentre"),
@@ -560,9 +586,12 @@ _mapInstanceDataToModel: function(formData, sInstanceId) {
                 SegmentProduct: getValue(item, "segmentProduct", "SegmentProduct"),
                 segmentShip: getValue(item, "segmentShiptoParty", "SegmentShiptoParty"),
                 segmentSold: getValue(item, "segmentSoldtoParty", "SegmentSoldtoParty"),
+
                 purchaseOrders: [],
                 purchaseOrderItems: [],
                 salesOrderItems: [],
+                filteredGLAccounts: [],
+
                 supplierState: "None",
                 supplierStateText: "",
                 descriptionState: "None",
@@ -577,46 +606,122 @@ _mapInstanceDataToModel: function(formData, sInstanceId) {
                 creditDebitStateText: ""
             };
         });
-        
-        console.log("Mapped items:", aItems);
+
         oModel.setProperty("/items", aItems);
-        
-        // After setting items, fetch supplier numbers and PO data
-        this._loadSupplierNumbersAndPOData(accrualTable, getValue(formData, "typeOfParty", "Partytype"));
+
+        this._loadSupplierNumbersAndPOData(
+            accrualTable,
+            getValue(formData, "typeOfParty", "Partytype")
+        );
+
     } else {
         console.warn("No accrual table data found");
     }
-    
-    // Store currency at model level
+
+    // ───────────────── CURRENCY ─────────────────
+
     if (accrualTable && accrualTable.length > 0) {
-        oModel.setProperty("/currency", getValue(accrualTable[0], "currency", "Currency"));
+        oModel.setProperty("/currency",
+            getValue(accrualTable[0], "currency", "Currency")
+        );
     }
-    
-    // Trigger affiliate change to load dependent data
+
+    // ───────────────── AFFILIATE DEPENDENT LOAD ─────────────────
+
     var sAffiliate = getValue(formData, "affiliate", "Affiliate");
     var sCompanyCode = getValue(formData, "companyCode", "CompanyCode");
-    
+
     if (sAffiliate && sCompanyCode) {
+
         var bCompanyCodesLoaded = oModel.getProperty("/companyCodesLoaded");
-        
+
         if (!bCompanyCodesLoaded) {
             this._fetchCompanyCodes()
                 .then(function() {
                     return that._fetchRelatedDataForAffiliate(sCompanyCode);
-                })
-                .catch(function(error) {
-                    console.error("Error loading related data:", error);
                 });
         } else {
-            this._fetchRelatedDataForAffiliate(sCompanyCode)
-                .catch(function(error) {
-                    console.error("Error loading related data:", error);
-                });
+            this._fetchRelatedDataForAffiliate(sCompanyCode);
         }
     }
-    
+
+    // ───────────────── GL FILTER TRIGGER ─────────────────
+
+    if (sGLType) {
+        setTimeout(function () {
+            that.onGLTypeChangeHeader({
+                getSource: function () {
+                    return {
+                        getSelectedKey: function () {
+                            return sGLType;
+                        }
+                    };
+                }
+            });
+        }, 300);
+    }
+
     console.log("Instance data mapped to model successfully");
 },
+
+
+onGLTypeChangeHeader: function (oEvent) {
+    var sType = oEvent.getSource().getSelectedKey();
+    var oModel = this.getView().getModel();
+
+    var sCompanyCode = oModel.getProperty("/companyCode");
+    var aItems = oModel.getProperty("/items") || [];
+
+    if (!sCompanyCode) {
+        sap.m.MessageToast.show("Select Affiliate first");
+        return;
+    }
+
+    var sFrom = "";
+    var sTo = "";
+
+    if (sType === "Fixed") {
+        sFrom = "60000000";
+        sTo = "69999999";
+    } else if (sType === "Variable") {
+        sFrom = "51000000";
+        sTo = "52299999";
+    }
+
+    sap.ui.core.BusyIndicator.show(0);
+
+    WorkflowAPI.fetchGLAccountsByRange(sCompanyCode, sFrom, sTo)
+        .then(function (aGL) {
+
+            //Store globally
+            oModel.setProperty("/filteredGLGlobal", aGL);
+
+            aItems.forEach(function (item, index) {
+
+                var sItemPath = "/items/" + index;
+
+                // DO NOT CLEAR EXISTING GL IN COPY MODE
+
+                if (!item.glAccount) {
+                    // only clear if empty (new row)
+                    oModel.setProperty(sItemPath + "/glAccount", "");
+                }
+
+                // Always update dropdown list
+                oModel.setProperty(sItemPath + "/filteredGLAccounts", aGL);
+
+            });
+
+        })
+        .catch(function () {
+            sap.m.MessageToast.show("GL fetch failed");
+        })
+        .finally(function () {
+            sap.ui.core.BusyIndicator.hide();
+        });
+},
+
+
 
 _loadSupplierNumbersAndPOData: function(accrualTable, typeOfParty) {
     var that = this;
@@ -631,9 +736,8 @@ _loadSupplierNumbersAndPOData: function(accrualTable, typeOfParty) {
     }
     sap.ui.core.BusyIndicator.show(0);
     
-    // Cache to avoid duplicate API calls for same supplier
-    var oSupplierNumberCache = {};  // supplierName -> supplierNumber
-    var oPOCache = {};              // supplierNumber -> purchaseOrders[]
+    var oSupplierNumberCache = {};
+    var oPOCache = {};
     
     var processItem = function(index) {
         if (index >= accrualTable.length) {
@@ -656,7 +760,6 @@ _loadSupplierNumbersAndPOData: function(accrualTable, typeOfParty) {
             return processItem(index + 1);
         }
         
-        // Use cached supplier number if available
         var getSupplierNumber = function() {
             if (oSupplierNumberCache[supplierCustomerName]) {
                 console.log("Using cached supplier number for:", supplierCustomerName);
@@ -685,7 +788,6 @@ _loadSupplierNumbersAndPOData: function(accrualTable, typeOfParty) {
                     return Promise.resolve();
                 }
                 
-                // Use cached POs if available
                 var getPurchaseOrders = function() {
                     if (oPOCache[supplierNumber]) {
                         console.log("Using cached POs for supplier:", supplierNumber);
@@ -693,23 +795,38 @@ _loadSupplierNumbersAndPOData: function(accrualTable, typeOfParty) {
                     }
                     return that._fetchPurchaseOrders(supplierNumber)
                         .then(function(aPurchaseOrders) {
-                            oPOCache[supplierNumber] = aPurchaseOrders;
-                            return aPurchaseOrders;
+                            // Filter out POs where PurchasingCompletenessStatus is true
+                            var aFiltered = aPurchaseOrders.filter(function(po) {
+                                return po.PurchasingCompletenessStatus !== true &&
+                                       po.PurchasingCompletenessStatus !== "true";
+                            });
+                            oPOCache[supplierNumber] = aFiltered;
+                            return aFiltered;
                         });
                 };
                 
                 return getPurchaseOrders()
-                    .then(function(aPurchaseOrders) {
-                        console.log("POs for item " + index + ":", aPurchaseOrders);
+                    .then(function(aFiltered) {
+                        console.log("POs for item " + index + ":", aFiltered);
                         
-                        // STEP 1: Set purchaseOrders array first
-                        oModel.setProperty("/items/" + index + "/purchaseOrders", aPurchaseOrders);
+                        // STEP 1: Set filtered purchaseOrders array
+                        oModel.setProperty("/items/" + index + "/purchaseOrders", aFiltered);
                         
-                        if (!existingPONumber || aPurchaseOrders.length === 0) {
+                        if (!existingPONumber || aFiltered.length === 0) {
                             return Promise.resolve();
                         }
                         
-                        // STEP 2: Wait longer for ComboBox to fully bind items
+                        // Check if existing PO is in filtered list
+                        var poExists = aFiltered.some(function(po) {
+                            return po.PurchaseOrder === existingPONumber;
+                        });
+                        
+                        if (!poExists) {
+                            console.warn("Existing PO " + existingPONumber + " is completed/filtered out");
+                            return Promise.resolve();
+                        }
+                        
+                        // STEP 2: Wait for ComboBox to fully bind items
                         return new Promise(function(resolve) {
                             setTimeout(function() {
                                 // STEP 3: Now set the selected key
@@ -736,7 +853,7 @@ _loadSupplierNumbersAndPOData: function(accrualTable, typeOfParty) {
                                         console.error("Error fetching PO items for item " + index, error);
                                         resolve();
                                     });
-                            }, 800); // Increased delay to 800ms
+                            }, 800);
                         });
                     });
             })
@@ -748,7 +865,6 @@ _loadSupplierNumbersAndPOData: function(accrualTable, typeOfParty) {
             });
     };
     
-    // Increased initial delay to 800ms
     setTimeout(function() {
         processItem(0)
             .catch(function(error) {
@@ -764,6 +880,60 @@ _loadSupplierNumbersAndPOData: function(accrualTable, typeOfParty) {
 _searchSupplierByName: function(supplierName, typeOfParty) {
     return WorkflowAPI.searchSupplierByName(supplierName, typeOfParty);
 },
+
+//-- Add credit line item -------------------
+
+onAddCreditFromRowCopy: function (oEvent) {
+    var oModel = this.getView().getModel();
+    var aItems = oModel.getProperty("/items");
+
+    var oContext = oEvent.getSource().getBindingContext();
+    if (!oContext) return;
+
+    var sPath = oContext.getPath();
+    var iIndex = parseInt(sPath.split("/").pop());
+
+    var oSelectedItem = aItems[iIndex];
+
+    // ✅ Only allow from Debit
+    if (oSelectedItem.creditDebit !== "Debit") {
+        sap.m.MessageBox.warning("Credit line can be created only from a Debit row.");
+        return;
+    }
+
+    // ✅ Deep copy
+    var oNewItem = JSON.parse(JSON.stringify(oSelectedItem));
+
+    // ✅ Change to Credit
+    oNewItem.creditDebit = "Credit";
+
+    // ✅ GL Mapping (IMPORTANT: Copy screen uses requestType)
+    var sAccrualType = oModel.getProperty("/requestType");
+
+    var oGLMap = {
+        "Commission": "21000010",
+        "Rebate": "21000011",
+        "Adhoc": "21000012",
+        "Technology": "21000013"
+    };
+
+    oNewItem.glAccount = oGLMap[sAccrualType] || "";
+
+    // ✅ Reset validation states
+    oNewItem.glAccountState = "None";
+    oNewItem.glAccountStateText = "";
+    oNewItem.creditDebitState = "None";
+    oNewItem.creditDebitStateText = "";
+
+    // ✅ Insert below selected row
+    aItems.splice(iIndex + 1, 0, oNewItem);
+
+    oModel.setProperty("/items", aItems);
+
+    sap.m.MessageToast.show("Credit line created successfully");
+},
+
+
 
 _fetchRelatedDataForAffiliate: function(sCompanyCode) {
     var that = this;
@@ -859,9 +1029,11 @@ _calculateFinanceApproval: function(oData) {
 },
 
 _preparePayloadForPatch: function(oData, iStatus) {
-    // Calculate finance approval flag (same logic as RequestPage)
+
+
+    oData.requestType = oData.accrualType || oData.requestType;
+
     var bFinanceApproval = this._calculateFinanceApproval(oData);
-    console.log("Finance Approval flag (PATCH):", bFinanceApproval);
 
     var payload = {
         status: "COMPLETED",
@@ -873,23 +1045,38 @@ _preparePayloadForPatch: function(oData, iStatus) {
             requestedBy: oData.requestedBy || "",
             approvedBy: oData.approvedBy || "",
             accrualCutOffDate: oData.cutoffDate || "",
-            typeOfRequest: oData.requestType || "",
+            // ✅ TYPE OF ACCRUAL — match POST field name exactly
+            TypeofRequest: oData.accrualType || "",
+            typeOfRequest: oData.accrualType || "",   // extra safety
+            typeOfAccrual: oData.accrualType || "",   // keep old one too
+
+            // ✅ TYPE OF REQUEST (Accrual / Reclass) — keep consistent
+            Requesttype:       oData.typeOfRequest || "",
+            requestType:       oData.typeOfRequest || "",
+            typeOfRequest_1:  oData.typeOfRequest  || "",
+
             typeOfParty: oData.typeOfParty || "",
+            debitGLType: oData.debitGLType,
             status: iStatus.toString(),
             financeApproval: bFinanceApproval,
+
             supportingDocuments: oData.dmsFolderId
-    ? "spa-res:cmis:folderid:" + oData.dmsFolderId
-    : "",
-Lastupdateddate: this._getCurrentDateFormatted(),
+                ? "spa-res:cmis:folderid:" + oData.dmsFolderId
+                : "",
+
+            Lastupdateddate: this._getCurrentDateFormatted(),
+
             accrual_Table: oData.items.map(function(item, index) {
+
                 var cdIndicator1 = "";
                 if (item.creditDebit === "Debit") {
                     cdIndicator1 = "D";
                 } else if (item.creditDebit === "Credit") {
                     cdIndicator1 = "C";
                 }
+
                 return {
-                    itemNumber: (index + 1).toString() || "",
+                    itemNumber: (index + 1).toString(),
                     supplierCustomer: item.supplier || "",
                     purchaseOrderNumber: item.poNumber || "",
                     purchaseOrderLineItem: item.poLineItem || "",
@@ -947,6 +1134,9 @@ Lastupdateddate: this._getCurrentDateFormatted(),
                 oModel.setProperty(sPath + "/poLineItem", firstItem.PurchaseOrderItem);
                 oModel.setProperty(sPath + "/description", firstItem.PurchaseOrderItemText);
                 oModel.setProperty(sPath + "/excludeTax", firstItem.NetAmount);
+oModel.setProperty(sPath + "/poNetAmount", firstItem.NetAmount);
+
+that._validateExcludeTaxValue(sPath, firstItem.NetAmount);
                 
                 MessageToast.show("PO Line Item details auto-populated");
             } else {
@@ -983,6 +1173,10 @@ onPOLineItemChange: function(oEvent) {
         if (selectedPOItem) {
             oModel.setProperty(sPath + "/description", selectedPOItem.PurchaseOrderItemText);
             oModel.setProperty(sPath + "/excludeTax", selectedPOItem.NetAmount);
+
+            oModel.setProperty(sPath + "/poNetAmount", selectedPOItem.NetAmount);
+
+            this._validateExcludeTaxValue(sPath, selectedPOItem.NetAmount);
             
             MessageToast.show("Description and Amount updated");
         }
@@ -1192,18 +1386,28 @@ onAddRow: function() {
     var aItems = oModel.getProperty("/items");
     var sCurrency = oModel.getProperty("/currency");
     var sRequestType = oModel.getProperty("/requestType");
-    
-    // Restrict to 2 rows for Reclass
-    if (sRequestType === "Reclass" && aItems.length >= 2) {
-        MessageBox.warning("Reclass request can have a maximum of 2 line items only.");
-        return;
-    }
+
+    var sType = oModel.getProperty("/typeOfRequest");
+
+if (sType === "Reclass" && aItems.length >= 2) {
+    MessageBox.warning("Only 2 rows allowed for Reclass");
+    return;
+}
     
     var newItem = this._createEmptyItem();
+
+    // Existing logic
     if (sCurrency) {
         newItem.currency = sCurrency;
     }
-    
+
+    //ADD THIS BLOCK (GL Fix)
+    var aGL = oModel.getProperty("/filteredGLGlobal");
+    if (aGL && aGL.length) {
+        newItem.filteredGLAccounts = aGL;
+    }
+    //END
+
     aItems.push(newItem);
     oModel.setProperty("/items", aItems);
     
@@ -1312,52 +1516,54 @@ onAddRow: function() {
             oModel.setProperty(sStateTextPath, "");
         },
 
-        onPONumberOpen: function(oEvent) {
-            var that = this;
-            var oComboBox = oEvent.getSource();
-            var oContext = oComboBox.getBindingContext();
-            var oModel = this.getView().getModel();
-            
-            if (!oContext) {
-                return;
-            }
-            
-            var sPath = oContext.getPath();
-            var oItem = oModel.getProperty(sPath);
-            var sSupplierNumber = oItem.supplierNumber;
-            var sTypeOfParty = oModel.getProperty("/typeOfParty");
-            
-            if (sTypeOfParty !== "Supplier") {
-                return;
-            }
-            
-            if (!sSupplierNumber) {
-                MessageToast.show("Please select a supplier first");
-                return;
-            }
-            
-            if (oItem.purchaseOrders && oItem.purchaseOrders.length > 0) {
-                return;
-            }
-            
-            oComboBox.setBusy(true);
-            
-            this._fetchPurchaseOrders(sSupplierNumber)
-                .then(function(aPurchaseOrders) {
-                    oModel.setProperty(sPath + "/purchaseOrders", aPurchaseOrders);
-                    
-                    if (aPurchaseOrders.length === 0) {
-                        MessageToast.show("No purchase orders found");
-                    }
-                })
-                .catch(function(error) {
-                    console.error("Error loading purchase orders:", error);
-                    MessageToast.show("Failed to load purchase orders");
-                })
-                .finally(function() {
-                    oComboBox.setBusy(false);
-                });
-        },
+
+        onExcludeTaxChange: function (oEvent) {
+    var oInput = oEvent.getSource();
+    var oContext = oInput.getBindingContext();
+
+    if (!oContext) return;
+
+    this._validateExcludeTaxValue(
+        oContext.getPath(),
+        oInput.getValue()
+    );
+},
+
+
+onPONumberOpen: function(oEvent) {
+    var oComboBox = oEvent.getSource();
+    var oContext = oComboBox.getBindingContext();
+    var oModel = this.getView().getModel();
+
+    if (!oContext) return;
+
+    var sPath = oContext.getPath();
+    var oItem = oModel.getProperty(sPath);
+    var sSupplierNumber = oItem.supplierNumber;
+    var sTypeOfParty = oModel.getProperty("/typeOfParty");
+
+    if (sTypeOfParty !== "Supplier") return;
+    if (!sSupplierNumber) { MessageToast.show("Please select a supplier first"); return; }
+    if (oItem.purchaseOrders && oItem.purchaseOrders.length > 0) return;
+
+    oComboBox.setBusy(true);
+
+    WorkflowAPI.fetchPurchaseOrders(sSupplierNumber)
+        .then(function(aPurchaseOrders) {
+            // Filter out POs where PurchasingCompletenessStatus is true
+            var aFiltered = aPurchaseOrders.filter(function(po) {
+                return po.PurchasingCompletenessStatus !== true && 
+                       po.PurchasingCompletenessStatus !== "true";
+            });
+            oModel.setProperty(sPath + "/purchaseOrders", aFiltered);
+            if (aFiltered.length === 0) MessageToast.show("No open purchase orders found");
+        })
+        .catch(function(error) {
+            console.error("Error loading purchase orders:", error);
+            MessageToast.show("Failed to load purchase orders");
+        })
+        .finally(function() { oComboBox.setBusy(false); });
+},
 
         onCostCentreOpen: function(oEvent) {
             var that = this;
@@ -1619,30 +1825,29 @@ onSupplierSuggestionSelected: function(oEvent) {
     var supplierCustomerNumber = parts[0];
     var name = parts[1] || sSelectedText;
 
+    // Set supplier name in input
     oSource.setValue(name);
 
     var sTypeOfParty = oModel.getProperty("/typeOfParty");
 
+    // Set CS Number (only once)
     if (!oModel.getProperty("/csNumber")) {
         oModel.setProperty("/csNumber", supplierCustomerNumber);
     }
 
     if (oContext) {
         var sPath = oContext.getPath();
+
+        // Store supplier number
         oModel.setProperty(sPath + "/supplierNumber", supplierCustomerNumber);
+
         oSource.setBusy(true);
 
-        // Use WorkflowAPI methods instead of local fetch methods
-        WorkflowAPI.fetchGLAccountForSupplierCustomer(
-            supplierCustomerNumber,
-            sTypeOfParty,
-            oModel.getProperty("/companyCode")
-        )
-        .then(function(glAccount) {
-            if (glAccount) {
-                oModel.setProperty(sPath + "/glAccount", glAccount);
-                MessageToast.show("GL Account " + glAccount + " auto-populated");
-            }
+        // 🚨 REMOVED: GL auto population logic
+        // Now GL is controlled ONLY by Debit GL Type
+
+        Promise.resolve()
+        .then(function() {
             if (sTypeOfParty === "Supplier") {
                 return WorkflowAPI.fetchPurchaseOrders(supplierCustomerNumber);
             }
@@ -1650,7 +1855,14 @@ onSupplierSuggestionSelected: function(oEvent) {
         })
         .then(function(aPurchaseOrders) {
             if (sTypeOfParty === "Supplier") {
-                oModel.setProperty(sPath + "/purchaseOrders", aPurchaseOrders);
+
+                // Filter out completed POs
+                var aFiltered = aPurchaseOrders.filter(function(po) {
+                    return po.PurchasingCompletenessStatus !== true &&
+                           po.PurchasingCompletenessStatus !== "true";
+                });
+
+                oModel.setProperty(sPath + "/purchaseOrders", aFiltered);
             }
         })
         .catch(function(error) {
@@ -1710,10 +1922,19 @@ _validateHeaderFields: function() {
         { id: "Copy_requestedByInput", name: "Requested by" },
         { id: "Copy_approvedByInput", name: "Approved by" },
         { id: "Copy_requestTypeSelect", name: "Type of request" },
+        { id: "accrualTypeSelect", name: "Type of Accrual" },
         { id: "Copy_typeOfPartySelect", name: "Type of Party" }
     ];
 
-    aRequiredFields.forEach(function(field) {
+var sTypeOfRequest = this.getView().getModel().getProperty("/typeOfRequest");
+
+aFields.forEach(function(field) {
+
+    // 🚨 Skip Type of Accrual validation for Reclass
+    if (field.id === "accrualTypeSelect" && sTypeOfRequest === "Reclass") {
+        return;
+    }
+
         var oControl = this.byId(field.id);
 
         if (!oControl) {
@@ -1735,6 +1956,49 @@ _validateHeaderFields: function() {
 
     return bValid;
 },
+
+
+_validateExcludeTaxValue: function (sPath, sValue) {
+    var oModel = this.getView().getModel();
+
+    oModel.setProperty(sPath + "/excludeTaxState", "None");
+    oModel.setProperty(sPath + "/excludeTaxStateText", "");
+
+    if (!sValue || sValue.toString().trim() === "") return;
+
+    var fValue = parseFloat(sValue);
+    var fPONetAmount = parseFloat(oModel.getProperty(sPath + "/poNetAmount"));
+
+    if (isNaN(fValue)) {
+        oModel.setProperty(sPath + "/excludeTaxState", "Error");
+        oModel.setProperty(sPath + "/excludeTaxStateText", "Must be a valid number");
+        return;
+    }
+
+    if (fValue < 5000) {
+        oModel.setProperty(sPath + "/excludeTaxState", "Error");
+        oModel.setProperty(
+            sPath + "/excludeTaxStateText",
+            "Amount less than 5000 is not allowed for accrual"
+        );
+        return;
+    }
+
+    if (!isNaN(fPONetAmount) && fValue > fPONetAmount) {
+        oModel.setProperty(sPath + "/excludeTaxState", "Error");
+        oModel.setProperty(
+            sPath + "/excludeTaxStateText",
+            "Amount exceeds Purchase Order Net Amount (" + fPONetAmount + ")"
+        );
+
+        sap.m.MessageBox.error(
+            "Entered amount (" + fValue + ") is exceeding the Purchase Order Net Amount (" + fPONetAmount + ")."
+        );
+        return;
+    }
+},
+
+
 
         _validateTableItems: function() {
             var bValid = true;
@@ -1837,9 +2101,17 @@ _preparePayloadForProcessAutomation: function(oData, iStatus) {
                 RequestedBy: oData.requestedBy || "",
                 ApprovedBy: oData.approvedBy || "",
                 AccrualCutOffDate: oData.cutoffDate || "",
-                TypeofRequest: oData.requestType || "",
+                // ✅ TYPE OF ACCRUAL (Commission / Rebate / Adhoc / Technology)
+                TypeofRequest: oData.accrualType || "",
+                typeOfRequest: oData.accrualType || "",  // extra safety
+
+                // ✅ TYPE OF REQUEST (Accrual / Reclass) — clearly separate
+                Requesttype: oData.typeOfRequest || "",
+                requestType: oData.typeOfRequest || "",
+                typeOfRequest_1:  oData.typeOfRequest  || "",
                 Partytype: oData.typeOfParty || "",
                 CSNumber: oData.csNumber || "",
+                debitGLType: oData.debitGLType,
                 Createddate: this._getCurrentDateFormatted(),  // NEW FIELD
                 Status: iStatus.toString(),
                 Supporting_Documents: oData.dmsFolderId
@@ -1898,6 +2170,11 @@ onSubmit: function () {
 
     var oModel = this.getView().getModel();
     var oData = oModel.getData();
+
+    oData.typeOfRequest = oModel.getProperty("/typeOfRequest");
+
+    // ADD THIS LINE
+    oData.debitGLType = oModel.getProperty("/glType");
 
     sap.ui.core.BusyIndicator.show(0);
 
@@ -1958,6 +2235,7 @@ onSubmit: function () {
     });
 },
 
+
 onSaveAsDraft: function () {
 
     var that = this;
@@ -1972,6 +2250,11 @@ onSaveAsDraft: function () {
 
     var oModel = this.getView().getModel();
     var oData = oModel.getData();
+
+    oData.typeOfRequest = oModel.getProperty("/typeOfRequest");
+
+    // ADD THIS LINE
+    oData.debitGLType = oModel.getProperty("/glType");
 
     sap.ui.core.BusyIndicator.show(0);
 
@@ -2029,28 +2312,40 @@ onSaveAsDraft: function () {
     });
 },
 
+
 onDMSFileSelected: function(oEvent) {
-    var that = this;
+
     var oFileUploader = oEvent.getSource();
-    var oFile = oFileUploader.oFileUpload.files[0];
+    var aFiles = oFileUploader.oFileUpload.files;
     var oModel = this.getView().getModel();
 
-    if (!oFile) return;
+    if (!aFiles || aFiles.length === 0) return;
 
-    // Always generate a unique folder name to avoid 409 conflicts
-    var sFolderName = "accrual_copy_" + Date.now();
     sap.ui.core.BusyIndicator.show(0);
 
     var sToken = null;
     var cfg = WorkflowAPI._dmsConfig;
     var ep = cfg.endpoints();
 
-    // Step 1: Get token once
+    // ✅ Reuse same folder
+    var sFolderName = oModel.getProperty("/dmsFolderName");
+
+    if (!sFolderName) {
+        sFolderName = "accrual_" + Date.now();
+        oModel.setProperty("/dmsFolderName", sFolderName);
+    }
+
     WorkflowAPI.getDMSToken()
         .then(function(token) {
             sToken = token;
 
-            // Step 2: Create folder with unique name
+            var sFolderId = oModel.getProperty("/dmsFolderId");
+
+            // ✅ Skip folder creation if already exists
+            if (sFolderId) {
+                return { skipCreate: true };
+            }
+
             var formData = new FormData();
             formData.append("cmisaction", "createFolder");
             formData.append("propertyId[0]", "cmis:objectTypeId");
@@ -2066,57 +2361,79 @@ onDMSFileSelected: function(oEvent) {
             });
         })
         .then(function(r) {
+
+            if (r && r.skipCreate) return r;
+
             if (!r.ok) throw new Error("Create folder failed: " + r.status);
             return r.json();
         })
         .then(function(data) {
-            var objectId = data && data.succinctProperties && data.succinctProperties["cmis:objectId"];
-            if (!objectId) throw new Error("cmis:objectId not found in folder response");
 
-            // Store folder ID in model
-            oModel.setProperty("/dmsFolderId", objectId);
+            if (!data.skipCreate) {
+                var objectId = data?.succinctProperties?.["cmis:objectId"];
+                oModel.setProperty("/dmsFolderId", objectId);
+            }
 
-            // Step 3: Upload file into the new folder using same token
             var uploadUrl = ep.createDocument + "/" + encodeURIComponent(sFolderName);
 
-            var uploadFormData = new FormData();
-            uploadFormData.append("cmisaction", "createDocument");
-            uploadFormData.append("propertyId[0]", "cmis:name");
-            uploadFormData.append("propertyValue[0]", oFile.name);
-            uploadFormData.append("propertyId[1]", "cmis:objectTypeId");
-            uploadFormData.append("propertyValue[1]", "cmis:document");
-            uploadFormData.append("filename", oFile.name);
-            uploadFormData.append("charset", "UTF-8");
-            uploadFormData.append("includeAllowableActions", "true");
-            uploadFormData.append("succinct", "true");
-            uploadFormData.append("media", oFile);
+            // ✅ MULTIPLE FILE UPLOAD WITH UNIQUE NAME
+            return Promise.all(
+                Array.from(aFiles).map(function(oFile) {
 
-            return fetch(uploadUrl, {
-                method: "POST",
-                headers: { "Authorization": "Bearer " + sToken },
-                body: uploadFormData
-            });
-        })
-        .then(function(r) {
-            if (!r.ok) throw new Error("Upload failed: " + r.status);
-            return r.json();
-        })
-        .then(function(data) {
-            var fileObjectId = data.succinctProperties
-                && data.succinctProperties["cmis:objectId"] || "temp_id";
+                    // 🔥 FIX: make filename unique
+                    var uniqueFileName = Date.now() + "_" + oFile.name;
 
+                    var fd = new FormData();
+                    fd.append("cmisaction", "createDocument");
+                    fd.append("propertyId[0]", "cmis:name");
+                    fd.append("propertyValue[0]", uniqueFileName);
+                    fd.append("propertyId[1]", "cmis:objectTypeId");
+                    fd.append("propertyValue[1]", "cmis:document");
+                    fd.append("filename", uniqueFileName);
+                    fd.append("charset", "UTF-8");
+                    fd.append("includeAllowableActions", "true");
+                    fd.append("succinct", "true");
+                    fd.append("media", oFile);
+
+                    return fetch(uploadUrl, {
+                        method: "POST",
+                        headers: { "Authorization": "Bearer " + sToken },
+                        body: fd
+                    })
+                    .then(function(r) {
+                        if (!r.ok) {
+                            throw new Error("Upload failed: " + r.status);
+                        }
+                        return r.json();
+                    })
+                    .then(function(res) {
+                        return {
+                            objectId: res?.succinctProperties?.["cmis:objectId"] || "temp_id",
+                            fileName: oFile.name, // ✅ show original name in UI
+                            fileType: oFile.name.split(".").pop().toUpperCase(),
+                            fileSize:
+                                oFile.size < 1024 ? oFile.size + " B"
+                                : oFile.size < 1048576 ? Math.round(oFile.size / 1024) + " KB"
+                                : Math.round(oFile.size / 1048576 * 10) / 10 + " MB",
+                            uploadedOn: new Date().toLocaleDateString()
+                        };
+                    });
+
+                })
+            );
+        })
+        .then(function(aResults) {
+
+            // ✅ APPEND (not overwrite)
             var aDocs = oModel.getProperty("/dmsDocuments") || [];
-            aDocs.push({
-                objectId: fileObjectId,
-                fileName: oFile.name,
-                fileType: oFile.name.split(".").pop().toUpperCase(),
-                fileSize: oFile.size < 1024 ? oFile.size + " B"
-                    : oFile.size < 1048576 ? Math.round(oFile.size / 1024) + " KB"
-                    : Math.round(oFile.size / 1048576 * 10) / 10 + " MB",
-                uploadedOn: new Date().toLocaleDateString()
+
+            aResults.forEach(function(doc) {
+                aDocs.push(doc);
             });
+
             oModel.setProperty("/dmsDocuments", aDocs);
-            MessageToast.show("File uploaded successfully");
+
+            MessageToast.show(aResults.length + " file(s) uploaded successfully");
         })
         .catch(function(error) {
             console.error("DMS Upload error:", error);
@@ -2128,44 +2445,7 @@ onDMSFileSelected: function(oEvent) {
         });
 },
 
-onDMSDownload: function(oEvent) {
-    var oDoc = oEvent.getSource().getBindingContext().getObject();
 
-    WorkflowAPI.downloadDMSFile(oDoc.objectId)
-        .then(function(blob) {
-            var url = URL.createObjectURL(blob);
-            var a = document.createElement("a");
-            a.href = url;
-            a.download = oDoc.fileName;
-            a.click();
-            URL.revokeObjectURL(url);
-        })
-        .catch(function(error) {
-            MessageBox.error("Download failed: " + error.message);
-        });
-},
-
-onDMSDelete: function(oEvent) {
-    var oDoc = oEvent.getSource().getBindingContext().getObject();
-    var oModel = this.getView().getModel();
-
-    MessageBox.confirm("Delete " + oDoc.fileName + "?", {
-        onClose: function(sAction) {
-            if (sAction !== MessageBox.Action.OK) return;
-            WorkflowAPI.deleteDMSFile(oDoc.objectId)
-                .then(function() {
-                    var aDocs = oModel.getProperty("/dmsDocuments").filter(function(d) {
-                        return d.objectId !== oDoc.objectId;
-                    });
-                    oModel.setProperty("/dmsDocuments", aDocs);
-                    MessageToast.show("File deleted");
-                })
-                .catch(function(error) {
-                    MessageBox.error("Delete failed: " + error.message);
-                });
-        }
-    });
-},
 
         onClear: function() {
             var that = this;
@@ -2190,6 +2470,7 @@ onDMSDelete: function(oEvent) {
                             companyCode: "",
                             requestedBy: sEmail || "",
                             approvedBy: "",
+                            typeOfRequest: "",
                             requestType: "",
                             typeOfParty: "",
                             csNumber: "",
@@ -2242,6 +2523,41 @@ _clearValueStates: function() {
         }
     }, this);
 },
+
+//------reclass
+
+
+onTypeOfRequestChange: function (oEvent) {
+
+    var oModel = this.getView().getModel();
+    var sType = oEvent.getSource().getSelectedKey();
+    var aItems = oModel.getProperty("/items") || [];
+
+    if (sType === "Reclass") {
+
+        // Max 2 rows
+        if (aItems.length > 2) {
+            aItems = aItems.slice(0, 2);
+        }
+
+        if (aItems.length === 1) {
+            aItems.push(this._createEmptyItem());
+        }
+
+        // Set Debit/Credit
+        if (aItems.length >= 2) {
+            aItems[0].creditDebit = "Debit";
+            aItems[1].creditDebit = "Credit";
+        }
+
+        oModel.setProperty("/items", aItems);
+
+        MessageToast.show("Reclass → Only 2 rows allowed");
+
+    }
+},
+
+
 
         _refreshForm: function() {
             var sEmail = this._getEmailFromURL();

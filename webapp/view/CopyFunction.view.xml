@@ -24,7 +24,6 @@
 						<!-- Left Column -->
 						<Label id="Copy_IDGenLabel" text="Affiliate" required="true" class="redAsterisk" />
 						<ComboBox id="Copy_affiliateSelect" selectedKey="{/affiliate}" required="true" change=".onAffiliateChange" selectionChange=".onAffiliateChange" showSecondaryValues="false" filterSecondaryValues="false" items="{/companyCodes}">
-							<core:Item id="Copy_IDGenItem19" key="" text="Select Affiliate..." />
 							<core:Item id="Copy_IDGenItem20" key="{CompanyCodeName}" text="{CompanyCodeName}" />
 						</ComboBox>
 						<Label id="Copy_IDGenLabel1" text="Name your accrual" required="true" class="redAsterisk" />
@@ -38,13 +37,49 @@
 						<Input id="Copy_requestedByInput" value="{/requestedBy}" placeholder="Enter requester email" required="true" change=".onFieldChange" />
 						<Label id="Copy_IDGenLabel5" text="To be Approved by" required="true" class="redAsterisk" />
 						<Input id="Copy_approvedByInput" value="{/approvedBy}" placeholder="Enter approver email" required="true" change=".onFieldChange" />
-						<Label id="Copy_IDGenLabel6" text="Type of request" required="true" class="redAsterisk" />
-						<Select id="Copy_requestTypeSelect" selectedKey="{/requestType}" required="true" change=".onRequestTypeChange">
+						<!-- Type of Request (NEW FIELD) -->
+						<Label id="Copy_typeOfRequestLabel" text="Type of Request" required="true" class="redAsterisk" />
+						<Select id="Copy_typeOfRequestSelect"
+							selectedKey="{/typeOfRequest}"
+							change=".onTypeOfRequestChange">
+
+							<items>
+								<core:Item id="_IDGenItem22" key="" text="Select..." />
+								<core:Item id="_IDGenItem23" key="Accrual" text="Accrual" />
+								<core:Item id="_IDGenItem24" key="Reclass" text="Reclass" />
+							</items>
+						</Select>
+							<Label id="Copy_IDGenLabel6"
+								text="Type of Accrual"
+								required="true"
+								class="redAsterisk"
+								visible="{= ${/typeOfRequest} !== 'Reclass' }" />
+
+							<Select id="Copy_requestTypeSelect"
+								selectedKey="{/requestType}"
+								required="true"
+								visible="{= ${/typeOfRequest} !== 'Reclass' }">
 							<items>
 								<core:Item id="Copy_IDGenItem" key="" text="Select..." />
-								<core:Item id="Copy_IDGenItem1" key="Accrual" text="Accrual" />
-								<core:Item id="Copy_IDGenItem2" key="Reclass" text="Reclass" />
+								<core:Item id="Copy_IDGenItem1" key="Commission" text="Commission Accruals" />
+								<core:Item id="Copy_IDGenItem2" key="Rebate" text="Rebate Accruals" />
+								<core:Item id="Copy_IDGenItem3" key="Adhoc" text="General Ad-Hoc Accruals" />
+								<core:Item id="Copy_IDGenItem4" key="Technology" text="Technology Accruals" />
 							</items>
+						</Select>
+						<Label id="Copy_IDGenLabel7" text="Debit GL Type" required="true" class="redAsterisk" />
+
+						<Select id="Copy_glaccount"
+							selectedKey="{/glType}"
+							required="true"
+							change=".onGLTypeChangeHeader">
+
+							<items>
+								<core:Item id="_IDGenItem14" key="" text="Select..." />
+								<core:Item id="_IDGenItem15" key="Fixed" text="Fixed Cost" />
+								<core:Item id="_IDGenItem16" key="Variable" text="Variable Cost" />
+							</items>
+
 						</Select>
 						<!-- New Type of Party Field -->
 						<Label id="Copy_typeOfPartyLabel" text="Type of Party" required="true" class="redAsterisk" />
@@ -155,7 +190,6 @@
 										<!-- Purchase Order Number - Dynamic based on Type of Party -->
 										<VBox id="Copy_IDGenVBox8">
 											<ComboBox id="Copy_poNumberSelect" selectedKey="{poNumber}" change=".onPONumberChange" loadItems=".onPONumberOpen" visible="{= ${/typeOfParty} === 'Supplier'}" items="{purchaseOrders}">
-												<core:Item id="Copy_IDGenItem5" key="" text="Select PO..." />
 												<core:Item id="Copy_IDGenItem6" key="{PurchaseOrder}" text="{PurchaseOrder}" />
 											</ComboBox>
 											<Input id="Copy_poNumberInput" value="{poNumber}" placeholder="PO Number" visible="{= ${/typeOfParty} !== 'Supplier'}" />
@@ -166,21 +200,26 @@
 										<!-- Description -->
 										<Input id="Copy_IDGenInput1" value="{description}" placeholder="Enter description" required="true" valueState="{descriptionState}" valueStateText="{descriptionStateText}" change=".onTableFieldChange" />
 										<!-- Currency -->
-			<Input id="Copy_currencyInput"
-    value="{currency}"
-    required="true"
-    valueState="{currencyState}"
-    valueStateText="{currencyStateText}"
-    editable="false"
-    enabled="true" />
+										<Input id="Copy_currencyInput"
+											value="{currency}"
+											required="true"
+											valueState="{currencyState}"
+											valueStateText="{currencyStateText}"
+											editable="false"
+											enabled="true" />
 										<!-- Exclude Tax -->
-										<Input id="Copy_IDGenInput2" value="{excludeTax}" placeholder="Amount" required="true" valueState="{excludeTaxState}" valueStateText="{excludeTaxStateText}" type="Number" change=".onTableFieldChange" />
+										<Input id="Copy_IDGenInput2" value="{excludeTax}" placeholder="Amount" required="true" valueState="{excludeTaxState}" valueStateText="{excludeTaxStateText}" type="Number" change=".onExcludeTaxChange" />
 										<!-- GL Account -->
-										<Input id="Copy_IDGenInput3" value="{glAccount}" placeholder="GL Code" required="true" valueState="{glAccountState}" valueStateText="{glAccountStateText}" change=".onTableFieldChange" showSuggestion="true" suggest=".onGLAccountSuggest" maxSuggestionWidth="400px" startSuggestion="0">
-											<suggestionItems>
-												<core:Item id="Copy_IDGenItemGL" key="{/glAccounts>GLAccount}" text="{/glAccounts>displayText}" />
-											</suggestionItems>
-										</Input>
+<Input id="_IDGenInput11"
+    value="{glAccount}"
+    showSuggestion="true"
+    startSuggestion="0"
+    suggestionItems="{path: 'filteredGLAccounts'}">
+
+    <core:Item id="_IDGenItem10"
+        key="{GLAccount}"
+        text="{GLAccount}" />
+</Input>
 										<!-- Credit/Debit -->
 										<Select id="Copy_IDGenSelect1" selectedKey="{creditDebit}" required="true" valueState="{creditDebitState}" valueStateText="{creditDebitStateText}" change=".onTableFieldChange">
 											<items>
@@ -195,7 +234,6 @@
 										</ComboBox>
 										<!-- Internal Order - NEW DROPDOWN -->
 										<ComboBox id="Copy_internalOrderSelect" selectedKey="{internalOrder}" change=".onTableFieldChange" loadItems=".onInternalOrderOpen" items="{/internalOrders}">
-											<core:Item id="Copy_IDGenItemIO0" key="" text="Select Internal Order..." />
 											<core:Item id="Copy_IDGenItemIO" key="{OrderNumber}" text="{displayText}" />
 										</ComboBox>
 										<!-- WBS -->
@@ -204,7 +242,6 @@
 										<Input id="Copy_IDGenInput8" value="{tradingPartner}" placeholder="Trading Partner" />
 										<!-- Sales Order Number - NEW COMBOBOX WITH SEARCH -->
 										<ComboBox id="Copy_salesOrderSelect" selectedKey="{salesOrder}" change=".onSalesOrderChange" loadItems=".onSalesOrderOpen" items="{/salesOrders}">
-											<core:Item id="Copy_IDGenItemSO0" key="" text="Select Sales Order..." />
 											<core:Item id="Copy_IDGenItemSO" key="{SalesOrder}" text="{SalesOrder}" />
 										</ComboBox>
 										<!-- Sales Order Item Number - AUTO-POPULATED INPUT -->
@@ -215,6 +252,8 @@
 										<Input id="Copy_segmentShipInput" value="{segmentShip}" placeholder="Ship to Party" editable="false" enabled="true" />
 										<!-- Segment-Sold to Party - AUTO-POPULATED INPUT -->
 										<Input id="Copy_segmentSoldInput" value="{segmentSold}" placeholder="Sold to Party" editable="false" enabled="true" />
+										<!-- Add Credit Line Item -->
+										<Button id="Copy_IDGenButton4" icon="sap-icon://add" type="Accept" tooltip="Add Credit Line" press=".onAddCreditFromRowCopy" />
 										<!-- Delete Button -->
 										<Button id="Copy_IDGenButton3" icon="sap-icon://delete" type="Reject" press=".onDeleteRow" />
 									</cells>
@@ -240,7 +279,7 @@
                     buttonText="Upload"
                     buttonOnly="true"
                     iconOnly="false"
-                    multiple="false"
+                    multiple="true"
                     change=".onDMSFileSelected"
                     style="Emphasized" />
             </Toolbar>

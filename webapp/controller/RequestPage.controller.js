@@ -21,6 +21,8 @@ sap.ui.define([
                 companyCode: "",
                 requestedBy: sEmail || "",
                 approvedBy: "",
+                typeOfRequest: "",
+                accrualType: "",
                 requestType: "",
                 typeOfParty: "",
                 csNumber: "",
@@ -255,6 +257,8 @@ onAffiliateOpen: function() {
 
             WorkflowAPI.fetchInstanceData(sInstanceId)
                 .then(function(data) {
+  console.log("FULL_RAW:" , JSON.stringify(data, null, 2));
+
                     var formData = null;
 
                     if (data.form_accrualSubmissionForm_2) {
@@ -279,191 +283,273 @@ onAffiliateOpen: function() {
                 });
         },
 
-        _mapInstanceDataToModel: function(formData, sInstanceId) {
-            var that = this;
-            var oModel = this.getView().getModel();
+_mapInstanceDataToModel: function(formData, sInstanceId) {
 
-            oModel.setProperty("/isEditMode", true);
-            oModel.setProperty("/instanceId", sInstanceId);
+    var that = this;
+    var oModel = this.getView().getModel();
 
-            var getValue = function(obj, key1, key2) {
-                return obj[key1] || obj[key2] || "";
+    oModel.setProperty("/isEditMode", true);
+    oModel.setProperty("/instanceId", sInstanceId);
+
+    var oNested = formData.form_accrualSubmissionForm_2 || {};
+
+    var getValue = function(obj, key1, key2, nestedKey) {
+        return obj[key1] || obj[key2] || (nestedKey ? oNested[nestedKey] : "") || "";
+    };
+
+    // ── Accrual Type Map ──────────────────────────────────────────────────
+    var oAccrualTypeMap = {
+        "Commission Accruals": "Commission", "Rebate Accruals": "Rebate",
+        "General Ad-Hoc Accruals": "Adhoc",  "Technology Accruals": "Technology",
+        "Commission": "Commission", "Rebate": "Rebate",
+        "Adhoc": "Adhoc",          "Technology": "Technology"
+    };
+
+    // ── FIELD 1: TYPE OF ACCRUAL (Commission / Rebate / Adhoc / Technology) ─
+    // Keys: typeOfAccrual, TypeofRequest, typeOfRequest  → all store Accrual Type
+    var sAccrualTypeRaw =
+        formData["typeOfRequest_1"] || 
+        formData["typeOfAccrual"] ||
+        formData["TypeofRequest"] ||
+        formData["typeOfRequest"] ||
+        "";
+
+    var sAccrualTypeKey = oAccrualTypeMap[sAccrualTypeRaw] || sAccrualTypeRaw;
+
+    oModel.setProperty("/accrualType", sAccrualTypeKey);
+    oModel.setProperty("/requestType", sAccrualTypeKey);
+
+    // ── FIELD 2: TYPE OF REQUEST (Accrual / Reclass) ──────────────────────
+    // Keys: Requesttype, requestType  → ONLY these store Type of Request
+    // NEVER fall back to typeOfRequest — that holds Accrual Type value
+    var sTypeOfRequestRaw =
+        formData["Requesttype"] ||
+        formData["requestType"] ||
+        "";
+
+    oModel.setProperty("/typeOfRequest", sTypeOfRequestRaw);
+
+    // ── GL Type ───────────────────────────────────────────────────────────
+    // PATCH saves as debitGLType, POST saves as DebitGL
+    var sGLType =
+        formData["debitGLType"] ||
+        formData["DebitGLType"] ||
+        formData["DebitGL"]     ||
+        formData["debitGL"]     ||
+        "";
+
+    oModel.setProperty("/glType", sGLType);
+
+    // ── Header Fields ─────────────────────────────────────────────────────
+    var sAffiliate   = getValue(formData, "affiliate",   "Affiliate",   "affiliate");
+    var sCompanyCode = getValue(formData, "companyCode", "CompanyCode", "companyCode");
+
+    oModel.setProperty("/nameAccrual", getValue(formData, "nameYourAccrual",   "NameYourAccrual",   "nameYourAccrual"));
+    oModel.setProperty("/requestedBy", getValue(formData, "requestedBy",       "RequestedBy",       "requestedBy"));
+    oModel.setProperty("/approvedBy",  getValue(formData, "approvedBy",        "ApprovedBy",        "approvedBy"));
+    oModel.setProperty("/cutoffDate",  getValue(formData, "accrualCutOffDate", "AccrualCutOffDate", "accrualCutOffDate"));
+    oModel.setProperty("/typeOfParty", getValue(formData, "typeOfParty",       "Partytype",         "typeOfParty"));
+    oModel.setProperty("/companyCode", sCompanyCode);
+    oModel.setProperty("/csNumber",    getValue(formData, "csNumber",          "CSNumber",          "csNumber"));
+
+    // ── DMS ───────────────────────────────────────────────────────────────
+    var sSupportingDocs =
+        getValue(formData, "supportingDocuments",  "SupportingDocuments",  "supportingDocuments") ||
+        getValue(formData, "Supporting_Documents", "supporting_Documents", "") ||
+        "";
+
+    if (sSupportingDocs && sSupportingDocs.indexOf("spa-res:cmis:folderid:") === 0) {
+        var sFolderIdClean = sSupportingDocs.replace("spa-res:cmis:folderid:", "");
+        oModel.setProperty("/dmsFolderId",   sFolderIdClean);
+        oModel.setProperty("/dmsFolderName", sFolderIdClean);
+
+        WorkflowAPI.fetchDMSFilesFromFolder(sSupportingDocs)
+            .then(function(aFiles) {
+                var aDocs = (aFiles || []).map(function(doc) {
+                    return {
+                        objectId:   doc.objectId,
+                        fileName:   doc.fileName,
+                        fileType:   doc.fileType,
+                        fileSize:   doc.fileSize,
+                        uploadedOn: doc.uploadedOn
+                    };
+                });
+                oModel.setProperty("/dmsDocuments", aDocs);
+            })
+            .catch(function(err) {
+                console.error("DMS fetch error:", err);
+                MessageToast.show("Could not load supporting documents");
+            });
+    }
+
+    // ── Table / Line Items ────────────────────────────────────────────────
+    var accrualTable =
+        formData.accrual_Table  ||
+        formData.Accrual_Table  ||
+        oNested.accrual_Table   ||
+        oNested.Accrual_Table   ||
+        [];
+
+    if (accrualTable && accrualTable.length > 0) {
+        var aItems = accrualTable.map(function(item) {
+            return {
+                supplier:       getValue(item, "supplierCustomer",      "SupplierCustomer"),
+                supplierNumber: "",
+                description:    getValue(item, "description",           "Description"),
+                currency:       getValue(item, "currency",              "Currency"),
+                excludeTax:     getValue(item, "excludeTax",            "ExcludeTax"),
+                glAccount:      getValue(item, "gLAccountCode",         "GLAccountCode"),
+                creditDebit:    getValue(item, "creditDebitIndicator",  "CreditDebitIndicator"),
+                poNumber:       getValue(item, "purchaseOrderNumber",   "PurchaseOrderNumber"),
+                poLineItem:     getValue(item, "purchaseOrderLineItem", "PurchaseOrderLineItem"),
+                costCentre:     getValue(item, "costCentre",            "CostCentre"),
+                internalOrder:  getValue(item, "internalOrder",         "InternalOrder"),
+                wbs:            getValue(item, "wBS",                   "WBS"),
+                tradingPartner: getValue(item, "tradingPartner",        "TradingPartner"),
+                salesOrder:     getValue(item, "salesOrderNumber",      "SalesOrderNumber"),
+                salesOrderItem: getValue(item, "salesOrderItemNumber",  "SalesOrderItemNumber"),
+                SegmentProduct: getValue(item, "segmentProduct",        "SegmentProduct"),
+                segmentShip:    getValue(item, "segmentShiptoParty",    "SegmentShiptoParty"),
+                segmentSold:    getValue(item, "segmentSoldtoParty",    "SegmentSoldtoParty"),
+                purchaseOrders:     [],
+                purchaseOrderItems: [],
+                salesOrderItems:    [],
+                filteredGLAccounts: [],
+                supplierState:    "None", supplierStateText:    "",
+                descriptionState: "None", descriptionStateText: "",
+                currencyState:    "None", currencyStateText:    "",
+                excludeTaxState:  "None", excludeTaxStateText:  "",
+                glAccountState:   "None", glAccountStateText:   "",
+                creditDebitState: "None", creditDebitStateText: ""
             };
-
-            oModel.setProperty("/affiliate", getValue(formData, "affiliate", "Affiliate"));
-            oModel.setProperty("/companyCode", getValue(formData, "companyCode", "CompanyCode"));
-            oModel.setProperty("/nameAccrual", getValue(formData, "nameYourAccrual", "NameYourAccrual"));
-            oModel.setProperty("/requestedBy", getValue(formData, "requestedBy", "RequestedBy"));
-            oModel.setProperty("/approvedBy", getValue(formData, "approvedBy", "ApprovedBy"));
-            oModel.setProperty("/cutoffDate", getValue(formData, "accrualCutOffDate", "AccrualCutOffDate"));
-            oModel.setProperty("/requestType", getValue(formData, "typeOfRequest", "TypeofRequest"));
-            oModel.setProperty("/typeOfParty", getValue(formData, "typeOfParty", "Partytype"));
-
-// ─── SUPPORTING DOCUMENTS (Edit Mode) ───────────────────────────────────
-var sSupportingDocs = formData.Supporting_Documents ||formData.
-supportingDocuments || "";
-if (sSupportingDocs && sSupportingDocs.indexOf("spa-res:cmis:folderid:") === 0) {
-    var sFolderId = sSupportingDocs.replace("spa-res:cmis:folderid:", "").trim();
-
-    // Set folder ID immediately so upload reuses the same folder
-    oModel.setProperty("/dmsFolderId", sFolderId);
-
-    // Initialize dmsDocuments as empty array first to trigger binding
-    oModel.setProperty("/dmsDocuments", []);
-
-    WorkflowAPI.fetchDMSFilesFromFolder(sSupportingDocs)
-        .then(function (aDMSFiles) {
-            console.log("DMS Files fetched:", JSON.stringify(aDMSFiles));
-            if (aDMSFiles && aDMSFiles.length > 0) {
-                // Use a fresh array reference to force model update
-                var aNewDocs = aDMSFiles.map(function(doc) {
-                    return {
-                        objectId:   doc.objectId   || "",
-                        fileName:   doc.fileName   || "",
-                        fileType:   doc.fileType   || "",
-                        fileSize:   doc.fileSize   || "",
-                        uploadedOn: doc.uploadedOn || "",
-                        folderId:   doc.folderId   || ""
-                    };
-                });
-                oModel.setProperty("/dmsDocuments", aNewDocs);
-                oModel.updateBindings(true);
-                MessageToast.show("Supporting document loaded successfully");
-            } else {
-                console.warn("fetchDMSFilesFromFolder returned empty array for folderId:", sFolderId);
-            }
-        })
-        .catch(function (error) {
-            console.error("Error loading supporting documents:", error);
-            MessageToast.show("Could not load supporting documents");
         });
-}
-// ─────────────────────────────────────────────────────────────────────────
 
-            var accrualTable = formData.accrual_Table || formData.Accrual_Table || [];
+        oModel.setProperty("/items", aItems);
+        oModel.setProperty("/currency", getValue(accrualTable[0], "currency", "Currency"));
 
-            if (accrualTable && accrualTable.length > 0) {
-                var aItems = accrualTable.map(function(item) {
-                    return {
-                        supplier: getValue(item, "supplierCustomer", "SupplierCustomer"),
-                        supplierNumber: "",
-                        description: getValue(item, "description", "Description"),
-                        currency: getValue(item, "currency", "Currency"),
-                        excludeTax: getValue(item, "excludeTax", "ExcludeTax"),
-                        glAccount: getValue(item, "gLAccountCode", "GLAccountCode"),
-                        creditDebit: getValue(item, "creditDebitIndicator", "CreditDebitIndicator"),
-                        poNumber: getValue(item, "purchaseOrderNumber", "PurchaseOrderNumber"),
-                        poLineItem: getValue(item, "purchaseOrderLineItem", "PurchaseOrderLineItem"),
-                        costCentre: getValue(item, "costCentre", "CostCentre"),
-                        internalOrder: getValue(item, "internalOrder", "InternalOrder"),
-                        wbs: getValue(item, "wBS", "WBS"),
-                        tradingPartner: getValue(item, "tradingPartner", "TradingPartner"),
-                        salesOrder: getValue(item, "salesOrderNumber", "SalesOrderNumber"),
-                        salesOrderItem: getValue(item, "salesOrderItemNumber", "SalesOrderItemNumber"),
-                        SegmentProduct: getValue(item, "segmentProduct", "SegmentProduct"),
-                        segmentShip: getValue(item, "segmentShiptoParty", "SegmentShiptoParty"),
-                        segmentSold: getValue(item, "segmentSoldtoParty", "SegmentSoldtoParty"),
-                        purchaseOrders: [],
-                        purchaseOrderItems: [],
-                        salesOrderItems: [],
-                        supplierState: "None", supplierStateText: "",
-                        descriptionState: "None", descriptionStateText: "",
-                        currencyState: "None", currencyStateText: "",
-                        excludeTaxState: "None", excludeTaxStateText: "",
-                        glAccountState: "None", glAccountStateText: "",
-                        creditDebitState: "None", creditDebitStateText: ""
-                    };
-                });
+        this._loadSupplierNumbersAndPOData(
+            accrualTable,
+            getValue(formData, "typeOfParty", "Partytype", "typeOfParty")
+        );
+    }
 
-                oModel.setProperty("/items", aItems);
-                this._loadSupplierNumbersAndPOData(accrualTable, getValue(formData, "typeOfParty", "Partytype"));
-            }
+    // ── Load Company Codes → Affiliate → GL / Cost Centre / etc. ─────────
+    this._loadCompanyCodes()
+        .then(function() {
+            var oMapping = oModel.getProperty("/affiliateToCompanyCodeMap") || {};
 
-            if (accrualTable && accrualTable.length > 0) {
-                oModel.setProperty("/currency", getValue(accrualTable[0], "currency", "Currency"));
-            }
-
-            var sAffiliate = getValue(formData, "affiliate", "Affiliate");
-            var sCompanyCode = getValue(formData, "companyCode", "CompanyCode");
-
-            if (sAffiliate && sCompanyCode) {
-                if (!oModel.getProperty("/companyCodesLoaded")) {
-                    this._loadCompanyCodes()
-                        .then(function() {
-                            return that._fetchRelatedDataForAffiliate(sCompanyCode);
-                        })
-                        .catch(function(error) {
-                            console.error("Error loading related data:", error);
-                        });
-                } else {
-                    this._fetchRelatedDataForAffiliate(sCompanyCode)
-                        .catch(function(error) {
-                            console.error("Error loading related data:", error);
-                        });
+            var sMatchedKey = "";
+            Object.keys(oMapping).forEach(function(key) {
+                if (key === sAffiliate || oMapping[key] === sCompanyCode) {
+                    sMatchedKey = key;
                 }
-            }
-        },
-
-        _loadSupplierNumbersAndPOData: function(accrualTable, typeOfParty) {
-            var that = this;
-            var oModel = this.getView().getModel();
-
-            sap.ui.core.BusyIndicator.show(0);
-
-            var aPromises = accrualTable.map(function(item, index) {
-                var supplierCustomerName = item.supplierCustomer || item.SupplierCustomer || "";
-                var existingPONumber = item.purchaseOrderNumber || item.PurchaseOrderNumber || "";
-
-                if (!supplierCustomerName) return Promise.resolve();
-
-                return WorkflowAPI.searchSupplierByName(supplierCustomerName, typeOfParty)
-                    .then(function(supplierNumber) {
-                        if (supplierNumber) {
-                            oModel.setProperty("/items/" + index + "/supplierNumber", supplierNumber);
-
-                            if (typeOfParty === "Supplier") {
-                                return WorkflowAPI.fetchPurchaseOrders(supplierNumber)
-                                    .then(function(aPurchaseOrders) {
-                                        oModel.setProperty("/items/" + index + "/purchaseOrders", aPurchaseOrders);
-
-                                        if (existingPONumber && aPurchaseOrders.length > 0) {
-                                            var poExists = aPurchaseOrders.some(function(po) {
-                                                return po.PurchaseOrder === existingPONumber;
-                                            });
-
-                                            if (poExists) {
-                                                oModel.setProperty("/items/" + index + "/poNumber", existingPONumber);
-
-                                                var existingPOLineItem = item.purchaseOrderLineItem || item.PurchaseOrderLineItem || "";
-                                                if (existingPOLineItem) {
-                                                    return WorkflowAPI.fetchPurchaseOrderItems(existingPONumber)
-                                                        .then(function(aPOItems) {
-                                                            oModel.setProperty("/items/" + index + "/purchaseOrderItems", aPOItems);
-                                                        });
-                                                }
-                                            }
-                                        }
-                                    });
-                            }
-                        }
-                        return Promise.resolve();
-                    })
-                    .catch(function(error) {
-                        console.error("Error loading supplier/PO data for item " + index, error);
-                    });
             });
 
-            Promise.all(aPromises)
-                .then(function() {
-                    MessageToast.show("Data loaded successfully");
-                })
-                .catch(function(error) {
-                    console.error("Error loading supplier data:", error);
-                })
-                .finally(function() {
-                    sap.ui.core.BusyIndicator.hide();
-                });
-        },
+            oModel.setProperty("/affiliate", sMatchedKey);
+
+            return that._fetchRelatedDataForAffiliate(sCompanyCode);
+        })
+        .then(function() {
+            // ── GL Range filter AFTER affiliate data is loaded ────────────
+            if (sCompanyCode && sGLType) {
+                var sFrom = sGLType === "Fixed" ? "60000000" : "51000000";
+                var sTo   = sGLType === "Fixed" ? "69999999" : "52299999";
+
+                return WorkflowAPI.fetchGLAccountsByRange(sCompanyCode, sFrom, sTo)
+                    .then(function(aGL) {
+                        oModel.setProperty("/filteredGLGlobal", aGL);
+                        var aItems = oModel.getProperty("/items") || [];
+                        aItems.forEach(function(item, index) {
+                            oModel.setProperty("/items/" + index + "/filteredGLAccounts", aGL);
+                        });
+                    });
+            }
+        })
+        .then(function() {
+            // ── Apply Reclass UI rules after load ─────────────────────────
+            var sLoadedType = oModel.getProperty("/typeOfRequest");
+
+            if (sLoadedType === "Reclass") {
+                var oAccrualLabel = that.byId("_IDGenLabel6");
+                var oAccrualField = that.byId("accrualTypeSelect");
+                if (oAccrualLabel) oAccrualLabel.setVisible(false);
+                if (oAccrualField) oAccrualField.setVisible(false);
+            }
+        })
+        .catch(function(err) {
+            console.error("Error during edit load:", err);
+        });
+},
+
+_loadSupplierNumbersAndPOData: function(accrualTable, typeOfParty) {
+    var that = this;
+    var oModel = this.getView().getModel();
+
+    sap.ui.core.BusyIndicator.show(0);
+
+    var aPromises = accrualTable.map(function(item, index) {
+        var supplierCustomerName = item.supplierCustomer || item.SupplierCustomer || "";
+        var existingPONumber = item.purchaseOrderNumber || item.PurchaseOrderNumber || "";
+
+        if (!supplierCustomerName) return Promise.resolve();
+
+        return WorkflowAPI.searchSupplierByName(supplierCustomerName, typeOfParty)
+            .then(function(supplierNumber) {
+                if (supplierNumber) {
+                    oModel.setProperty("/items/" + index + "/supplierNumber", supplierNumber);
+
+                    if (typeOfParty === "Supplier") {
+                        return WorkflowAPI.fetchPurchaseOrders(supplierNumber)
+                            .then(function(aPurchaseOrders) {
+                                // Filter out POs where PurchasingCompletenessStatus is true
+                                var aFiltered = aPurchaseOrders.filter(function(po) {
+                                    return po.PurchasingCompletenessStatus !== true &&
+                                           po.PurchasingCompletenessStatus !== "true";
+                                });
+
+                                oModel.setProperty("/items/" + index + "/purchaseOrders", aFiltered);
+
+                                if (existingPONumber && aFiltered.length > 0) {
+                                    var poExists = aFiltered.some(function(po) {
+                                        return po.PurchaseOrder === existingPONumber;
+                                    });
+
+                                    if (poExists) {
+                                        oModel.setProperty("/items/" + index + "/poNumber", existingPONumber);
+
+                                        var existingPOLineItem = item.purchaseOrderLineItem || item.PurchaseOrderLineItem || "";
+                                        if (existingPOLineItem) {
+                                            return WorkflowAPI.fetchPurchaseOrderItems(existingPONumber)
+                                                .then(function(aPOItems) {
+                                                    oModel.setProperty("/items/" + index + "/purchaseOrderItems", aPOItems);
+                                                    oModel.setProperty("/items/" + index + "/poLineItem", existingPOLineItem);
+                                                });
+                                        }
+                                    } else {
+                                        console.warn("Existing PO " + existingPONumber + " is completed/filtered out for item " + index);
+                                    }
+                                }
+                            });
+                    }
+                }
+                return Promise.resolve();
+            })
+            .catch(function(error) {
+                console.error("Error loading supplier/PO data for item " + index, error);
+            });
+    });
+
+    Promise.all(aPromises)
+        .then(function() {
+            MessageToast.show("Data loaded successfully");
+        })
+        .catch(function(error) {
+            console.error("Error loading supplier data:", error);
+        })
+        .finally(function() {
+            sap.ui.core.BusyIndicator.hide();
+        });
+},
 
         _fetchRelatedDataForAffiliate: function(sCompanyCode) {
             var that = this;
@@ -549,6 +635,7 @@ if (sSupportingDocs && sSupportingDocs.indexOf("spa-res:cmis:folderid:") === 0) 
                         oModel.setProperty(sPath + "/poLineItem", firstItem.PurchaseOrderItem);
                         oModel.setProperty(sPath + "/description", firstItem.PurchaseOrderItemText);
                         oModel.setProperty(sPath + "/excludeTax", firstItem.NetAmount);
+                        oModel.setProperty(sPath + "/poNetAmount", firstItem.NetAmount);
                         that._validateExcludeTaxValue(sPath, firstItem.NetAmount);
                         MessageToast.show("PO Line Item details auto-populated");
                     } else {
@@ -583,41 +670,47 @@ if (sSupportingDocs && sSupportingDocs.indexOf("spa-res:cmis:folderid:") === 0) 
                 if (selectedPOItem) {
                     oModel.setProperty(sPath + "/description", selectedPOItem.PurchaseOrderItemText);
                     oModel.setProperty(sPath + "/excludeTax", selectedPOItem.NetAmount);
+                    oModel.setProperty(sPath + "/poNetAmount", selectedPOItem.NetAmount);
                     this._validateExcludeTaxValue(sPath, selectedPOItem.NetAmount);
                     MessageToast.show("Description and Amount updated");
                 }
             }
         },
 
-        onPONumberOpen: function(oEvent) {
-            var oComboBox = oEvent.getSource();
-            var oContext = oComboBox.getBindingContext();
-            var oModel = this.getView().getModel();
+onPONumberOpen: function(oEvent) {
+    var oComboBox = oEvent.getSource();
+    var oContext = oComboBox.getBindingContext();
+    var oModel = this.getView().getModel();
 
-            if (!oContext) return;
+    if (!oContext) return;
 
-            var sPath = oContext.getPath();
-            var oItem = oModel.getProperty(sPath);
-            var sSupplierNumber = oItem.supplierNumber;
-            var sTypeOfParty = oModel.getProperty("/typeOfParty");
+    var sPath = oContext.getPath();
+    var oItem = oModel.getProperty(sPath);
+    var sSupplierNumber = oItem.supplierNumber;
+    var sTypeOfParty = oModel.getProperty("/typeOfParty");
 
-            if (sTypeOfParty !== "Supplier") return;
-            if (!sSupplierNumber) { MessageToast.show("Please select a supplier first"); return; }
-            if (oItem.purchaseOrders && oItem.purchaseOrders.length > 0) return;
+    if (sTypeOfParty !== "Supplier") return;
+    if (!sSupplierNumber) { MessageToast.show("Please select a supplier first"); return; }
+    if (oItem.purchaseOrders && oItem.purchaseOrders.length > 0) return;
 
-            oComboBox.setBusy(true);
+    oComboBox.setBusy(true);
 
-            WorkflowAPI.fetchPurchaseOrders(sSupplierNumber)
-                .then(function(aPurchaseOrders) {
-                    oModel.setProperty(sPath + "/purchaseOrders", aPurchaseOrders);
-                    if (aPurchaseOrders.length === 0) MessageToast.show("No purchase orders found");
-                })
-                .catch(function(error) {
-                    console.error("Error loading purchase orders:", error);
-                    MessageToast.show("Failed to load purchase orders");
-                })
-                .finally(function() { oComboBox.setBusy(false); });
-        },
+    WorkflowAPI.fetchPurchaseOrders(sSupplierNumber)
+        .then(function(aPurchaseOrders) {
+            // Filter out POs where PurchasingCompletenessStatus is true
+            var aFiltered = aPurchaseOrders.filter(function(po) {
+                return po.PurchasingCompletenessStatus !== true && 
+                       po.PurchasingCompletenessStatus !== "true";
+            });
+            oModel.setProperty(sPath + "/purchaseOrders", aFiltered);
+            if (aFiltered.length === 0) MessageToast.show("No open purchase orders found");
+        })
+        .catch(function(error) {
+            console.error("Error loading purchase orders:", error);
+            MessageToast.show("Failed to load purchase orders");
+        })
+        .finally(function() { oComboBox.setBusy(false); });
+},
 
         onCostCentreOpen: function(oEvent) {
             var oModel = this.getView().getModel();
@@ -666,7 +759,6 @@ if (sSupportingDocs && sSupportingDocs.indexOf("spa-res:cmis:folderid:") === 0) 
                         var oApprovedByInput = that.byId("approvedByInput");
                         if (approverEmail) {
                             oModel.setProperty("/approvedBy", approverEmail);
-                            if (oApprovedByInput) oApprovedByInput.setEditable(false);
                             MessageToast.show("Approver email auto-populated from Cost Center");
                         } else {
                             if (oApprovedByInput) oApprovedByInput.setEditable(true);
@@ -790,57 +882,72 @@ if (sSupportingDocs && sSupportingDocs.indexOf("spa-res:cmis:folderid:") === 0) 
                 .finally(function() { oSource.setBusy(false); });
         },
 
-        onSupplierSuggestionSelected: function(oEvent) {
-            var that = this;
-            var oSelectedItem = oEvent.getParameter("selectedItem");
+onSupplierSuggestionSelected: function(oEvent) {
+    var that = this;
+    var oSelectedItem = oEvent.getParameter("selectedItem");
 
-            if (!oSelectedItem) return;
+    if (!oSelectedItem) return;
 
-            var sSelectedText = oSelectedItem.getText();
-            var oSource = oEvent.getSource();
-            var oContext = oSource.getBindingContext();
-            var oModel = this.getView().getModel();
+    var sSelectedText = oSelectedItem.getText();
+    var oSource = oEvent.getSource();
+    var oContext = oSource.getBindingContext();
+    var oModel = this.getView().getModel();
 
-            var parts = sSelectedText.split(" - ");
-            var supplierCustomerNumber = parts[0];
-            var name = parts[1] || sSelectedText;
+    var parts = sSelectedText.split(" - ");
+    var supplierCustomerNumber = parts[0];
+    var name = parts[1] || sSelectedText;
 
-            oSource.setValue(name);
+    oSource.setValue(name);
 
-            var sTypeOfParty = oModel.getProperty("/typeOfParty");
+    var sTypeOfParty = oModel.getProperty("/typeOfParty");
 
-            if (!oModel.getProperty("/csNumber")) {
-                oModel.setProperty("/csNumber", supplierCustomerNumber);
+    if (!oModel.getProperty("/csNumber")) {
+        oModel.setProperty("/csNumber", supplierCustomerNumber);
+    }
+
+    if (oContext) {
+        var sPath = oContext.getPath();
+        oModel.setProperty(sPath + "/supplierNumber", supplierCustomerNumber);
+        oSource.setBusy(true);
+/*
+        WorkflowAPI.fetchGLAccountForSupplierCustomer(
+            supplierCustomerNumber,
+            sTypeOfParty,
+            oModel.getProperty("/companyCode")
+        )
+        .then(function(glAccount) {
+            if (glAccount) {
+                oModel.setProperty(sPath + "/glAccount", glAccount);
+                MessageToast.show("GL Account " + glAccount + " auto-populated");
             }
+*/
+var pPromise;
 
-            if (oContext) {
-                var sPath = oContext.getPath();
-                oModel.setProperty(sPath + "/supplierNumber", supplierCustomerNumber);
-                oSource.setBusy(true);
+        if (sTypeOfParty === "Supplier") {
+            pPromise = WorkflowAPI.fetchPurchaseOrders(supplierCustomerNumber);
+        } else {
+            pPromise = Promise.resolve([]);
+        }
 
-                WorkflowAPI.fetchGLAccountForSupplierCustomer(
-                    supplierCustomerNumber,
-                    sTypeOfParty,
-                    oModel.getProperty("/companyCode")
-                )
-                .then(function(glAccount) {
-                    if (glAccount) {
-                        oModel.setProperty(sPath + "/glAccount", glAccount);
-                        MessageToast.show("GL Account " + glAccount + " auto-populated");
-                    }
-                    if (sTypeOfParty === "Supplier") {
-                        return WorkflowAPI.fetchPurchaseOrders(supplierCustomerNumber);
-                    }
-                    return [];
-                })
-                .then(function(aPurchaseOrders) {
-                    if (sTypeOfParty === "Supplier") {
-                        oModel.setProperty(sPath + "/purchaseOrders", aPurchaseOrders);
-                    }
-                })
-                .finally(function() { oSource.setBusy(false); });
-            }
-        },
+        pPromise
+            .then(function(aPurchaseOrders) {
+                if (sTypeOfParty === "Supplier") {
+                    var aFiltered = aPurchaseOrders.filter(function(po) {
+                        return po.PurchasingCompletenessStatus !== true &&
+                               po.PurchasingCompletenessStatus !== "true";
+                    });
+
+                    oModel.setProperty(sPath + "/purchaseOrders", aFiltered);
+                }
+            })
+            .catch(function(error) {
+                console.error("Error in supplier selection:", error);
+            })
+            .finally(function() {
+                oSource.setBusy(false);
+            });
+    }
+},
 
         onGLAccountSuggest: function(oEvent) {
             var oSource = oEvent.getSource();
@@ -908,6 +1015,113 @@ onCurrencyChange: function(oEvent) {
             "Please submit a separate request form for line items with a different currency."
         );
     }
+},
+
+
+       //─── Add Credit row
+
+       onAddCreditFromRow: function (oEvent) {
+    var oModel = this.getView().getModel();
+    var aItems = oModel.getProperty("/items");
+
+    var oContext = oEvent.getSource().getBindingContext();
+    if (!oContext) return;
+
+    var sPath = oContext.getPath();
+    var iIndex = parseInt(sPath.split("/").pop());
+
+    var oSelectedItem = aItems[iIndex];
+
+    // ✅ Allow only from Debit row
+    if (oSelectedItem.creditDebit !== "Debit") {
+        sap.m.MessageBox.warning("Credit line can be created only from a Debit row.");
+        return;
+    }
+
+    // ✅ Copy row
+    var oNewItem = JSON.parse(JSON.stringify(oSelectedItem));
+
+    // ✅ Change to Credit
+    oNewItem.creditDebit = "Credit";
+
+    // ✅ GL Mapping based on Accrual Type
+    var sAccrualType = oModel.getProperty("/accrualType");
+
+    var oGLMap = {
+        "Commission": "21000010",
+        "Rebate": "21000011",
+        "Adhoc": "21000012",
+        "Technology": "21000013"
+    };
+
+    oNewItem.glAccount = oGLMap[sAccrualType] || "";
+
+    // ✅ Optional: clear validation states
+    oNewItem.glAccountState = "None";
+    oNewItem.glAccountStateText = "";
+    oNewItem.creditDebitState = "None";
+    oNewItem.creditDebitStateText = "";
+
+    // ✅ Insert just below the selected row (better UX)
+    aItems.splice(iIndex + 1, 0, oNewItem);
+
+    oModel.setProperty("/items", aItems);
+
+    sap.m.MessageToast.show("Credit line created successfully");
+},
+
+
+        //------ Debit GL Account
+
+onGLTypeChangeHeader: function (oEvent) {
+    var sType = oEvent.getSource().getSelectedKey();
+    var oModel = this.getView().getModel();
+
+    var sCompanyCode = oModel.getProperty("/companyCode");
+    var aItems = oModel.getProperty("/items") || [];
+
+    if (!sCompanyCode) {
+        sap.m.MessageToast.show("Select Affiliate first");
+        return;
+    }
+
+    var sFrom = "";
+    var sTo = "";
+
+    if (sType === "Fixed") {
+        sFrom = "60000000";
+        sTo = "69999999";
+    } else if (sType === "Variable") {
+        sFrom = "51000000";
+        sTo = "52299999";
+    }
+
+    sap.ui.core.BusyIndicator.show(0);
+
+    WorkflowAPI.fetchGLAccountsByRange(sCompanyCode, sFrom, sTo)
+        .then(function (aGL) {
+
+            console.log("GL Result:", aGL);
+
+            //ADD THIS (GLOBAL STORE FOR NEW ROWS)
+            oModel.setProperty("/filteredGLGlobal", aGL);
+
+            //UPDATE EACH ROW PROPERLY
+            aItems.forEach(function (item, index) {
+                var sItemPath = "/items/" + index;
+
+                oModel.setProperty(sItemPath + "/glAccount", "");
+                oModel.setProperty(sItemPath + "/filteredGLAccounts", aGL);
+            });
+
+        })
+        .catch(function (err) {
+            console.error("GL fetch error:", err);
+            sap.m.MessageToast.show("GL fetch failed");
+        })
+        .finally(function () {
+            sap.ui.core.BusyIndicator.hide();
+        });
 },
 
 
@@ -988,24 +1202,31 @@ onCurrencyChange: function(oEvent) {
             this._validateExcludeTaxValue(oContext.getPath(), oInput.getValue());
         },
 
-        onAddRow: function() {
-            var oModel = this.getView().getModel();
-            var aItems = oModel.getProperty("/items");
-            var sRequestType = oModel.getProperty("/requestType");
+onAddRow: function() {
+    var oModel = this.getView().getModel();
+    var aItems = oModel.getProperty("/items");
+    var sRequestType = oModel.getProperty("/requestType");
+    var sRequestType = oModel.getProperty("/typeOfRequest");
 
-            if (sRequestType === "Reclass" && aItems.length >= 2) {
-                MessageBox.warning("Reclass request can have a maximum of 2 line items only.");
-                return;
-            }
+    if (sRequestType === "Reclass" && aItems.length >= 2) {
+        MessageBox.warning("Reclass request can have a maximum of 2 line items only.");
+        return;
+    }
 
-            var newItem = this._createEmptyItem();
-            var sCurrency = oModel.getProperty("/currency");
-            if (sCurrency) newItem.currency = sCurrency;
+    var newItem = this._createEmptyItem();
+    var sCurrency = oModel.getProperty("/currency");
+    if (sCurrency) newItem.currency = sCurrency;
 
-            aItems.push(newItem);
-            oModel.setProperty("/items", aItems);
-            MessageToast.show("New row added");
-        },
+    var aGL = oModel.getProperty("/filteredGLGlobal");
+    if (aGL && aGL.length) {
+        newItem.filteredGLAccounts = aGL;
+    }
+
+    aItems.push(newItem);
+    oModel.setProperty("/items", aItems);
+
+    MessageToast.show("New row added");
+},
 
         onDeleteRow: function(oEvent) {
             var oModel = this.getView().getModel();
@@ -1064,178 +1285,277 @@ onCurrencyChange: function(oEvent) {
 
         // ─── SUBMIT / DRAFT ──────────────────────────────────────────────────────────
 
-        onSubmit: function() {
-            var that = this;
-            if (!this._validateHeaderFields() || !this._validateCutoffDate() || !this._validateTableItems()) {
-                MessageBox.error("Please fill in all required fields correctly");
-                return;
-            }
-
-            var oModel = this.getView().getModel();
-            var oData = oModel.getData();
-            var sInstanceId = this._getInstanceIdFromURL();
-
-            sap.ui.core.BusyIndicator.show(0);
-
-            if (sInstanceId) {
-                WorkflowAPI.getTaskInstanceByWorkflowId(sInstanceId, 10, 2000)
-                    .then(function(taskInstanceId) {
-                        if (!taskInstanceId) throw new Error("No READY form found for workflow instance: " + sInstanceId);
-                        return WorkflowAPI.patchTaskInstance(taskInstanceId, that._preparePayloadForPatch(oData, 1));
-                    })
-                    .then(function() {
-                        sap.ui.core.BusyIndicator.hide();
-                        MessageBox.success("Request submitted successfully!", {
-                            onClose: function() { that._refreshForm(); that.getOwnerComponent().getRouter().navTo("Dashboard"); }
-                        });
-                    })
-                    .catch(function(error) {
-                        sap.ui.core.BusyIndicator.hide();
-                        MessageBox.error("Failed to submit request:\n\n" + error.message);
-                    });
-            } else {
-                var workflowInstanceId = null;
-                WorkflowAPI.triggerWorkflow(this._preparePayloadForProcessAutomation(oData, 1))
-                    .then(function(result) {
-                        workflowInstanceId = result.id;
-                        if (!workflowInstanceId) throw new Error("Workflow created but no instance ID returned");
-                        return WorkflowAPI.getTaskInstanceByWorkflowId(workflowInstanceId, 10, 3000);
-                    })
-                    .then(function(taskInstanceId) {
-                        if (!taskInstanceId) throw new Error("No READY form found after workflow creation");
-                        return WorkflowAPI.patchTaskInstance(taskInstanceId, that._preparePayloadForPatch(oData, 1));
-                    })
-                    .then(function() {
-                        sap.ui.core.BusyIndicator.hide();
-                        MessageBox.success("Request submitted successfully!", {
-                            onClose: function() { that._refreshForm(); that.getOwnerComponent().getRouter().navTo("Dashboard"); }
-                        });
-                    })
-                    .catch(function(error) {
-                        sap.ui.core.BusyIndicator.hide();
-                        MessageBox.error("Failed to submit request:\n\n" + error.message);
-                    });
-            }
-        },
-
-        onSaveAsDraft: function() {
-            var that = this;
-            if (!this._validateHeaderFields() || !this._validateCutoffDate() || !this._validateTableItems()) {
-                MessageBox.error("Please fill in all required fields correctly");
-                return;
-            }
-
-            var oModel = this.getView().getModel();
-            var oData = oModel.getData();
-            var sInstanceId = this._getInstanceIdFromURL();
-
-            sap.ui.core.BusyIndicator.show(0);
-
-            if (sInstanceId) {
-                WorkflowAPI.getTaskInstanceByWorkflowId(sInstanceId, 5, 2000)
-                    .then(function(taskInstanceId) {
-                        if (!taskInstanceId) throw new Error("No READY form found for workflow instance: " + sInstanceId);
-                        return WorkflowAPI.patchTaskInstance(taskInstanceId, that._preparePayloadForPatch(oData, 2));
-                    })
-                    .then(function() {
-                        sap.ui.core.BusyIndicator.hide();
-                        MessageBox.success("Request saved as draft!", {
-                            onClose: function() { that._refreshForm(); that.getOwnerComponent().getRouter().navTo("Dashboard"); }
-                        });
-                    })
-                    .catch(function(error) {
-                        sap.ui.core.BusyIndicator.hide();
-                        MessageBox.error("Failed to save draft:\n\n" + error.message);
-                    });
-            } else {
-                var workflowInstanceId = null;
-                WorkflowAPI.triggerWorkflow(this._preparePayloadForProcessAutomation(oData, 2))
-                    .then(function(result) {
-                        workflowInstanceId = result.id;
-                        if (!workflowInstanceId) throw new Error("Workflow created but no instance ID returned");
-                        return WorkflowAPI.getTaskInstanceByWorkflowId(workflowInstanceId, 10, 3000);
-                    })
-                    .then(function(taskInstanceId) {
-                        if (!taskInstanceId) throw new Error("No READY form found after workflow creation");
-                        return WorkflowAPI.patchTaskInstance(taskInstanceId, that._preparePayloadForPatch(oData, 2));
-                    })
-                    .then(function() {
-                        sap.ui.core.BusyIndicator.hide();
-                        MessageBox.success("Request saved as draft!", {
-                            onClose: function() { that._refreshForm(); that.getOwnerComponent().getRouter().navTo("Dashboard"); }
-                        });
-                    })
-                    .catch(function(error) {
-                        sap.ui.core.BusyIndicator.hide();
-                        MessageBox.error("Failed to save draft:\n\n" + error.message);
-                    });
-            }
-        },
-
-        // ─── DMS HANDLERS ────────────────────────────────────────────────────────────
-
-onDMSFileSelected: function(oEvent) {
+onSubmit: function() {
     var that = this;
-    var oFileUploader = oEvent.getSource();
-    var oFile = oFileUploader.oFileUpload.files[0];
+
+    if (!this._validateHeaderFields() || !this._validateCutoffDate() || !this._validateTableItems()) {
+        MessageBox.error("Please fill in all required fields correctly");
+        return;
+    }
+
     var oModel = this.getView().getModel();
+    oModel.setProperty("/requestType", oModel.getProperty("/accrualType"));
 
-    if (!oFile) return;
 
-    var aExistingDocs = oModel.getProperty("/dmsDocuments") || [];
-    var sInstanceId = oModel.getProperty("/instanceId") || "accrual_" + Date.now();
+    var oData = oModel.getData();
+
+    oData.typeOfRequest = oModel.getProperty("/typeOfRequest");
+
+    //ADD THIS LINE
+    oData.debitGLType = oModel.getProperty("/glType");
+
+    var sInstanceId = this._getInstanceIdFromURL();
 
     sap.ui.core.BusyIndicator.show(0);
 
-    // Step 1: If there is an existing file, delete it first
-    var oDeletePromise = Promise.resolve();
-    if (aExistingDocs.length > 0 && aExistingDocs[0].objectId) {
-        oDeletePromise = WorkflowAPI.deleteDMSFile(aExistingDocs[0].objectId)
+    if (sInstanceId) {
+        WorkflowAPI.getTaskInstanceByWorkflowId(sInstanceId, 10, 2000)
+            .then(function(taskInstanceId) {
+                if (!taskInstanceId) throw new Error("No READY form found for workflow instance: " + sInstanceId);
+                return WorkflowAPI.patchTaskInstance(taskInstanceId, that._preparePayloadForPatch(oData, 1));
+            })
             .then(function() {
-                // Clear existing documents and folder ID
-                oModel.setProperty("/dmsDocuments", []);
-                oModel.setProperty("/dmsFolderId", "");
-                MessageToast.show("Existing file removed, creating new folder...");
+                sap.ui.core.BusyIndicator.hide();
+                MessageBox.success("Request submitted successfully!", {
+                    onClose: function() { 
+                        that._refreshForm(); 
+                        that.getOwnerComponent().getRouter().navTo("Dashboard"); 
+                    }
+                });
             })
             .catch(function(error) {
-                console.error("Error deleting existing DMS file:", error);
-                // Clear anyway and continue with new folder creation
-                oModel.setProperty("/dmsDocuments", []);
-                oModel.setProperty("/dmsFolderId", "");
+                sap.ui.core.BusyIndicator.hide();
+                MessageBox.error("Failed to submit request:\n\n" + error.message);
+            });
+    } else {
+        var workflowInstanceId = null;
+
+        WorkflowAPI.triggerWorkflow(this._preparePayloadForProcessAutomation(oData, 1))
+            .then(function(result) {
+                workflowInstanceId = result.id;
+                if (!workflowInstanceId) throw new Error("Workflow created but no instance ID returned");
+                return WorkflowAPI.getTaskInstanceByWorkflowId(workflowInstanceId, 10, 3000);
+            })
+            .then(function(taskInstanceId) {
+                if (!taskInstanceId) throw new Error("No READY form found after workflow creation");
+                return WorkflowAPI.patchTaskInstance(taskInstanceId, that._preparePayloadForPatch(oData, 1));
+            })
+            .then(function() {
+                sap.ui.core.BusyIndicator.hide();
+                MessageBox.success("Request submitted successfully!", {
+                    onClose: function() { 
+                        that._refreshForm(); 
+                        that.getOwnerComponent().getRouter().navTo("Dashboard"); 
+                    }
+                });
+            })
+            .catch(function(error) {
+                sap.ui.core.BusyIndicator.hide();
+                MessageBox.error("Failed to submit request:\n\n" + error.message);
             });
     }
+},
 
-    oDeletePromise
-        .then(function() {
-            return WorkflowAPI.getDMSToken();
-        })
-        .then(function(token) {
-            // Always create a new folder (Option A)
-            // New folder name = instanceId + timestamp to ensure uniqueness
-            var sNewFolderName = sInstanceId + "_" + Date.now();
-            return WorkflowAPI.createDMSFolder(sNewFolderName)
-                .then(function(folder) {
-                    // Store new folder ID in model immediately
-                    oModel.setProperty("/dmsFolderId", folder.objectId);
-                    console.log("New DMS folder created:", folder.objectId);
-                    return WorkflowAPI.uploadDMSFile(oFile, folder.folderName, token);
+
+onSaveAsDraft: function() {
+    var that = this;
+
+    if (!this._validateHeaderFields() || !this._validateCutoffDate() || !this._validateTableItems()) {
+        MessageBox.error("Please fill in all required fields correctly");
+        return;
+    }
+
+    var oModel = this.getView().getModel();
+    oModel.setProperty("/requestType", oModel.getProperty("/accrualType"));
+
+
+    var oData = oModel.getData();
+
+    oData.typeOfRequest = oModel.getProperty("/typeOfRequest");
+
+    // ADD THIS LINE
+    oData.debitGLType = oModel.getProperty("/glType");
+
+    var sInstanceId = this._getInstanceIdFromURL();
+
+    sap.ui.core.BusyIndicator.show(0);
+
+    if (sInstanceId) {
+        WorkflowAPI.getTaskInstanceByWorkflowId(sInstanceId, 5, 2000)
+            .then(function(taskInstanceId) {
+                if (!taskInstanceId) throw new Error("No READY form found for workflow instance: " + sInstanceId);
+                return WorkflowAPI.patchTaskInstance(taskInstanceId, that._preparePayloadForPatch(oData, 2));
+            })
+            .then(function() {
+                sap.ui.core.BusyIndicator.hide();
+                MessageBox.success("Request saved as draft!", {
+                    onClose: function() { 
+                        that._refreshForm(); 
+                        that.getOwnerComponent().getRouter().navTo("Dashboard"); 
+                    }
                 });
-        })
-        .then(function(result) {
-            var aDocs = oModel.getProperty("/dmsDocuments") || [];
-            aDocs.push({
-                objectId:   result.objectId,
-                fileName:   result.name,
-                fileType:   result.name.split(".").pop().toUpperCase(),
-                fileSize:   oFile.size < 1024 ? oFile.size + " B"
-                          : oFile.size < 1048576 ? Math.round(oFile.size / 1024) + " KB"
-                          : Math.round(oFile.size / 1048576 * 10) / 10 + " MB",
-                uploadedOn: new Date().toLocaleDateString()
+            })
+            .catch(function(error) {
+                sap.ui.core.BusyIndicator.hide();
+                MessageBox.error("Failed to save draft:\n\n" + error.message);
             });
+    } else {
+        var workflowInstanceId = null;
+
+        WorkflowAPI.triggerWorkflow(this._preparePayloadForProcessAutomation(oData, 2))
+            .then(function(result) {
+                workflowInstanceId = result.id;
+                if (!workflowInstanceId) throw new Error("Workflow created but no instance ID returned");
+                return WorkflowAPI.getTaskInstanceByWorkflowId(workflowInstanceId, 10, 3000);
+            })
+            .then(function(taskInstanceId) {
+                if (!taskInstanceId) throw new Error("No READY form found after workflow creation");
+                return WorkflowAPI.patchTaskInstance(taskInstanceId, that._preparePayloadForPatch(oData, 2));
+            })
+            .then(function() {
+                sap.ui.core.BusyIndicator.hide();
+                MessageBox.success("Request saved as draft!", {
+                    onClose: function() { 
+                        that._refreshForm(); 
+                        that.getOwnerComponent().getRouter().navTo("Dashboard"); 
+                    }
+                });
+            })
+            .catch(function(error) {
+                sap.ui.core.BusyIndicator.hide();
+                MessageBox.error("Failed to save draft:\n\n" + error.message);
+            });
+    }
+},
+
+        // ─── DMS HANDLERS ────────────────────────────────────────────────────────────
+
+// ─── DMS HANDLERS ────────────────────────────────────────────────────────────
+
+onDMSFileSelected: function(oEvent) {
+
+    var oFileUploader = oEvent.getSource();
+    var aFiles = oFileUploader.oFileUpload.files;
+    var oModel = this.getView().getModel();
+
+    if (!aFiles || aFiles.length === 0) return;
+
+    sap.ui.core.BusyIndicator.show(0);
+
+    var sToken = null;
+    var cfg = WorkflowAPI._dmsConfig;
+    var ep = cfg.endpoints();
+
+    // ✅ Reuse same folder
+    var sFolderName = oModel.getProperty("/dmsFolderName");
+
+    if (!sFolderName) {
+        sFolderName = "accrual_" + Date.now();
+        oModel.setProperty("/dmsFolderName", sFolderName);
+    }
+
+    WorkflowAPI.getDMSToken()
+        .then(function(token) {
+            sToken = token;
+
+            var sFolderId = oModel.getProperty("/dmsFolderId");
+
+            // ✅ Skip folder creation if already exists
+            if (sFolderId) {
+                return { skipCreate: true };
+            }
+
+            var formData = new FormData();
+            formData.append("cmisaction", "createFolder");
+            formData.append("propertyId[0]", "cmis:objectTypeId");
+            formData.append("propertyValue[0]", "cmis:folder");
+            formData.append("propertyId[1]", "cmis:name");
+            formData.append("propertyValue[1]", sFolderName);
+            formData.append("succinct", "true");
+
+            return fetch(ep.createFolder, {
+                method: "POST",
+                headers: { "Authorization": "Bearer " + sToken },
+                body: formData
+            });
+        })
+        .then(function(r) {
+
+            if (r && r.skipCreate) return r;
+
+            if (!r.ok) throw new Error("Create folder failed: " + r.status);
+            return r.json();
+        })
+        .then(function(data) {
+
+            if (!data.skipCreate) {
+                var objectId = data?.succinctProperties?.["cmis:objectId"];
+                oModel.setProperty("/dmsFolderId", objectId);
+            }
+
+            var uploadUrl = ep.createDocument + "/" + encodeURIComponent(sFolderName);
+
+            // ✅ MULTIPLE FILE UPLOAD WITH UNIQUE NAME
+            return Promise.all(
+                Array.from(aFiles).map(function(oFile) {
+
+                    // 🔥 FIX: make filename unique
+                    var uniqueFileName = Date.now() + "_" + oFile.name;
+
+                    var fd = new FormData();
+                    fd.append("cmisaction", "createDocument");
+                    fd.append("propertyId[0]", "cmis:name");
+                    fd.append("propertyValue[0]", uniqueFileName);
+                    fd.append("propertyId[1]", "cmis:objectTypeId");
+                    fd.append("propertyValue[1]", "cmis:document");
+                    fd.append("filename", uniqueFileName);
+                    fd.append("charset", "UTF-8");
+                    fd.append("includeAllowableActions", "true");
+                    fd.append("succinct", "true");
+                    fd.append("media", oFile);
+
+                    return fetch(uploadUrl, {
+                        method: "POST",
+                        headers: { "Authorization": "Bearer " + sToken },
+                        body: fd
+                    })
+                    .then(function(r) {
+                        if (!r.ok) {
+                            throw new Error("Upload failed: " + r.status);
+                        }
+                        return r.json();
+                    })
+                    .then(function(res) {
+                        return {
+                            objectId: res?.succinctProperties?.["cmis:objectId"] || "temp_id",
+                            fileName: oFile.name, // ✅ show original name in UI
+                            fileType: oFile.name.split(".").pop().toUpperCase(),
+                            fileSize:
+                                oFile.size < 1024 ? oFile.size + " B"
+                                : oFile.size < 1048576 ? Math.round(oFile.size / 1024) + " KB"
+                                : Math.round(oFile.size / 1048576 * 10) / 10 + " MB",
+                            uploadedOn: new Date().toLocaleDateString()
+                        };
+                    });
+
+                })
+            );
+        })
+        .then(function(aResults) {
+
+            // ✅ APPEND (not overwrite)
+            var aDocs = oModel.getProperty("/dmsDocuments") || [];
+
+            aResults.forEach(function(doc) {
+                aDocs.push(doc);
+            });
+
             oModel.setProperty("/dmsDocuments", aDocs);
-            MessageToast.show("File uploaded successfully");
+
+            MessageToast.show(aResults.length + " file(s) uploaded successfully");
         })
         .catch(function(error) {
+            console.error("DMS Upload error:", error);
             MessageBox.error("Upload failed: " + error.message);
         })
         .finally(function() {
@@ -1244,41 +1564,165 @@ onDMSFileSelected: function(oEvent) {
         });
 },
 
-        onDMSDownload: function(oEvent) {
-            var oDoc = oEvent.getSource().getBindingContext().getObject();
+//--Reclass
 
-            WorkflowAPI.downloadDMSFile(oDoc.objectId)
-                .then(function(blob) {
-                    var url = URL.createObjectURL(blob);
-                    var a = document.createElement("a");
-                    a.href = url;
-                    a.download = oDoc.fileName;
-                    a.click();
-                    URL.revokeObjectURL(url);
-                })
-                .catch(function(error) {
-                    MessageBox.error("Download failed: " + error.message);
-                });
-        },
+onTypeOfRequestChange: function (oEvent) {
 
-        onDMSDelete: function(oEvent) {
-    var that = this;
+    var oModel = this.getView().getModel();
+    var sType = oEvent.getSource().getSelectedKey();
+    var aItems = oModel.getProperty("/items");
+
+    var oAccrualLabel = this.byId("_IDGenLabel6");
+    var oAccrualField = this.byId("accrualTypeSelect");
+
+    if (sType === "Reclass") {
+
+        // Hide Accrual Type
+        oAccrualLabel.setVisible(false);
+        oAccrualField.setVisible(false);
+
+        // Ensure max 2 rows
+        if (aItems.length > 2) {
+            aItems = aItems.slice(0, 2);
+        }
+
+        // Ensure exactly 2 rows
+        if (aItems.length === 1) {
+            aItems.push(this._createEmptyItem());
+        }
+
+        // Set Debit/Credit
+        if (aItems.length >= 2) {
+            aItems[0].creditDebit = "Debit";
+            aItems[1].creditDebit = "Credit";
+        }
+
+        oModel.setProperty("/items", aItems);
+
+        sap.m.MessageToast.show("Reclass → Only 2 rows allowed");
+
+    } else {
+
+        // Show Accrual Type
+        oAccrualLabel.setVisible(true);
+        oAccrualField.setVisible(true);
+    }
+},
+
+//---dms fetch
+
+_fetchDMSFilesFromFolder: function (sFolderId) {
+
+    var oModel = this.getView().getModel();
+    var cfg = WorkflowAPI._dmsConfig;
+    var ep = cfg.endpoints();
+
+    if (!sFolderId) return;
+
+    sap.ui.core.BusyIndicator.show(0);
+
+    WorkflowAPI.getDMSToken()
+        .then(function (token) {
+
+            // 🔥 CMIS: get children of folder
+            var url = ep.browser + "?objectId=" + encodeURIComponent(sFolderId) +
+                      "&cmisselector=children&succinct=true";
+
+            return fetch(url, {
+                method: "GET",
+                headers: {
+                    "Authorization": "Bearer " + token
+                }
+            });
+        })
+        .then(function (res) {
+            if (!res.ok) throw new Error("Fetch files failed: " + res.status);
+            return res.json();
+        })
+        .then(function (data) {
+
+            var aObjects = data?.objects || [];
+
+            var aDocs = aObjects.map(function (obj) {
+
+                var props = obj.object?.succinctProperties || {};
+
+                var name = props["cmis:name"];
+                var size = props["cmis:contentStreamLength"];
+                var date = props["cmis:creationDate"];
+                var objectId = props["cmis:objectId"];
+
+                return {
+                    objectId: objectId,
+                    fileName: name,
+                    fileType: name.split(".").pop().toUpperCase(),
+                    fileSize: size
+                        ? Math.round(size / 1024) + " KB"
+                        : "-",
+                    uploadedOn: date
+                        ? new Date(date).toLocaleDateString()
+                        : "-"
+                };
+            });
+
+            oModel.setProperty("/dmsDocuments", aDocs);
+        })
+        .catch(function (err) {
+            console.error("DMS fetch error:", err);
+            MessageBox.error("Failed to load supporting documents");
+        })
+        .finally(function () {
+            sap.ui.core.BusyIndicator.hide();
+        });
+},
+
+//--------dms download
+
+onDMSDownload: function (oEvent) {
+
+    var oDoc = oEvent.getSource().getBindingContext().getObject();
+
+    WorkflowAPI.downloadDMSFile(oDoc.objectId)
+        .then(function (blob) {
+            var url = URL.createObjectURL(blob);
+            var a = document.createElement("a");
+            a.href = url;
+            a.download = oDoc.fileName;
+            a.click();
+            URL.revokeObjectURL(url);
+        })
+        .catch(function (err) {
+            MessageBox.error("Download failed: " + err.message);
+        });
+},
+
+//-----------dms delete
+
+onDMSDelete: function (oEvent) {
+
     var oDoc = oEvent.getSource().getBindingContext().getObject();
     var oModel = this.getView().getModel();
 
     MessageBox.confirm("Delete " + oDoc.fileName + "?", {
-        onClose: function(sAction) {
-            if (sAction !== MessageBox.Action.OK) return;  // ✅ fixed
+        onClose: function (sAction) {
+
+            if (sAction !== MessageBox.Action.OK) return;
+
             WorkflowAPI.deleteDMSFile(oDoc.objectId)
-                .then(function() {
-                    var aDocs = oModel.getProperty("/dmsDocuments").filter(function(d) {
+                .then(function () {
+
+                    var aDocs = oModel.getProperty("/dmsDocuments") || [];
+
+                    aDocs = aDocs.filter(function (d) {
                         return d.objectId !== oDoc.objectId;
                     });
+
                     oModel.setProperty("/dmsDocuments", aDocs);
+
                     MessageToast.show("File deleted");
                 })
-                .catch(function(error) {
-                    MessageBox.error("Delete failed: " + error.message);
+                .catch(function (err) {
+                    MessageBox.error("Delete failed: " + err.message);
                 });
         }
     });
@@ -1364,21 +1808,47 @@ onDMSFileSelected: function(oEvent) {
 
         // ─── PRIVATE HELPERS ─────────────────────────────────────────────────────────
 
-        _createEmptyItem: function() {
-            return {
-                supplier: "", supplierNumber: "", description: "", currency: "",
-                excludeTax: "", glAccount: "", creditDebit: "", poNumber: "", poLineItem: "",
-                costCentre: "", internalOrder: "", wbs: "", tradingPartner: "",
-                salesOrder: "", salesOrderItem: "", SegmentProduct: "", segmentShip: "", segmentSold: "",
-                purchaseOrders: [], purchaseOrderItems: [], salesOrderItems: [],
-                supplierState: "None", supplierStateText: "",
-                descriptionState: "None", descriptionStateText: "",
-                currencyState: "None", currencyStateText: "",
-                excludeTaxState: "None", excludeTaxStateText: "",
-                glAccountState: "None", glAccountStateText: "",
-                creditDebitState: "None", creditDebitStateText: ""
-            };
-        },
+_createEmptyItem: function() {
+    return {
+        supplier: "",
+        supplierNumber: "",
+        description: "",
+        currency: "",
+        excludeTax: "",
+        glAccount: "",
+        creditDebit: "",
+        poNumber: "",
+        poLineItem: "",
+        costCentre: "",
+        internalOrder: "",
+        wbs: "",
+        tradingPartner: "",
+        salesOrder: "",
+        salesOrderItem: "",
+        SegmentProduct: "",
+        segmentShip: "",
+        segmentSold: "",
+        purchaseOrders: [],
+        purchaseOrderItems: [],
+        salesOrderItems: [],
+
+        filteredGLAccounts: [],
+        
+        // validation states
+        supplierState: "None",
+        supplierStateText: "",
+        descriptionState: "None",
+        descriptionStateText: "",
+        currencyState: "None",
+        currencyStateText: "",
+        excludeTaxState: "None",
+        excludeTaxStateText: "",
+        glAccountState: "None",
+        glAccountStateText: "",
+        creditDebitState: "None",
+        creditDebitStateText: ""
+    };
+},
 
         _getCurrentMonthEndDate: function() {
             var today = new Date();
@@ -1444,22 +1914,39 @@ onDMSFileSelected: function(oEvent) {
                 { id: "companyCodeInput", name: "Company code" },
                 { id: "requestedByInput", name: "Requested by" },
                 { id: "approvedByInput", name: "Approved by" },
-                { id: "requestTypeSelect", name: "Type of request" },
+                { id: "typeOfRequestSelect", name: "Type of Request" },
+                { id: "accrualTypeSelect", name: "Type of Accrual" },
                 { id: "typeOfPartySelect", name: "Type of Party" }
             ];
 
-            aFields.forEach(function(field) {
-                var oControl = this.byId(field.id);
-                var sValue = oControl.getValue ? oControl.getValue() : oControl.getSelectedKey();
-                if (!sValue || sValue.trim() === "") {
-                    oControl.setValueState("Error");
-                    oControl.setValueStateText(field.name + " is required");
-                    bValid = false;
-                } else {
-                    oControl.setValueState("None");
-                    oControl.setValueStateText("");
-                }
-            }, this);
+var sTypeOfRequest = this.getView().getModel().getProperty("/typeOfRequest");
+
+aFields.forEach(function(field) {
+
+    // 🚨 Skip Type of Accrual validation for Reclass
+    if (field.id === "accrualTypeSelect" && sTypeOfRequest === "Reclass") {
+        return;
+    }
+
+    var oControl = this.byId(field.id);
+
+    if (!oControl) {
+        console.error("Control not found:", field.id);
+        return;
+    }
+
+    var sValue = oControl.getValue ? oControl.getValue() : oControl.getSelectedKey();
+
+    if (!sValue || sValue.trim() === "") {
+        oControl.setValueState("Error");
+        oControl.setValueStateText(field.name + " is required");
+        bValid = false;
+    } else {
+        oControl.setValueState("None");
+        oControl.setValueStateText("");
+    }
+
+}, this);
 
             return bValid;
         },
@@ -1470,7 +1957,7 @@ onDMSFileSelected: function(oEvent) {
             var bValid = true;
 
             if (aItems.length === 0) { MessageBox.error("At least one line item is required"); return false; }
-            if (oModel.getProperty("/requestType") === "Reclass" && aItems.length > 2) {
+            if (oModel.getProperty("/typeOfRequest") === "Reclass" && aItems.length > 2) {
                 MessageBox.error("Reclass request can have a maximum of 2 line items only.");
                 return false;
             }
@@ -1565,24 +2052,63 @@ if (item.excludeTax && isNaN(item.excludeTax)) {
             return true;
         },
 
-        _validateExcludeTaxValue: function(sPath, sValue) {
-            var oModel = this.getView().getModel();
-            oModel.setProperty(sPath + "/excludeTaxState", "None");
-            oModel.setProperty(sPath + "/excludeTaxStateText", "");
 
-            if (!sValue || sValue.toString().trim() === "") return;
+        _setRequestTypeFromAccrual: function () {
+    var oModel = this.getView().getModel();
+    var sAccrualType = oModel.getProperty("/accrualType");
 
-            if (isNaN(sValue)) {
-                oModel.setProperty(sPath + "/excludeTaxState", "Error");
-                oModel.setProperty(sPath + "/excludeTaxStateText", "Must be a valid number");
-                return;
-            }
+    if (sAccrualType) {
+        oModel.setProperty("/requestType", sAccrualType);
+    }
+},
 
-            if (parseFloat(sValue) < 5000) {
-                oModel.setProperty(sPath + "/excludeTaxState", "Error");
-                oModel.setProperty(sPath + "/excludeTaxStateText", "Amount less than 5000 is not allowed for accrual");
-            }
-        },
+_validateExcludeTaxValue: function (sPath, sValue) {
+    var oModel = this.getView().getModel();
+
+    // Reset state
+    oModel.setProperty(sPath + "/excludeTaxState", "None");
+    oModel.setProperty(sPath + "/excludeTaxStateText", "");
+
+    if (!sValue || sValue.toString().trim() === "") return;
+
+    var fValue = parseFloat(sValue);
+    var fPONetAmount = parseFloat(oModel.getProperty(sPath + "/poNetAmount"));
+
+    // ❌ Not a number
+    if (isNaN(fValue)) {
+        oModel.setProperty(sPath + "/excludeTaxState", "Error");
+        oModel.setProperty(sPath + "/excludeTaxStateText", "Must be a valid number");
+        return;
+    }
+
+    // ❌ Less than 5000
+    if (fValue < 5000) {
+        oModel.setProperty(sPath + "/excludeTaxState", "Error");
+        oModel.setProperty(
+            sPath + "/excludeTaxStateText",
+            "Amount less than 5000 is not allowed for accrual"
+        );
+        return;
+    }
+
+    // ❌ NEW VALIDATION → Exceeding PO Net Amount
+    if (!isNaN(fPONetAmount) && fValue > fPONetAmount) {
+        oModel.setProperty(sPath + "/excludeTaxState", "Error");
+        oModel.setProperty(
+            sPath + "/excludeTaxStateText",
+            "Amount exceeds Purchase Order Net Amount (" + fPONetAmount + ")"
+        );
+
+        sap.m.MessageBox.error(
+            "Entered amount (" + fValue + ") is exceeding the Purchase Order Net Amount (" + fPONetAmount + ")."
+        );
+        return;
+    }
+
+    // ✅ Valid
+    oModel.setProperty(sPath + "/excludeTaxState", "None");
+    oModel.setProperty(sPath + "/excludeTaxStateText", "");
+},
 
         _clearValueStates: function() {
             ["affiliateSelect", "nameAccrualInput", "cutoffDatePicker", "companyCodeInput",
@@ -1602,63 +2128,76 @@ if (item.excludeTax && isNaN(item.excludeTax)) {
             });
         },
 
-        _preparePayloadForPatch: function(oData, iStatus) {
-            return {
-                status: "COMPLETED",
-                decision: "submit",
-                context: {
-                    affiliate: oData.affiliate || "",
-                    companyCode: oData.companyCode || "",
-                    nameYourAccrual: oData.nameAccrual || "",
-                    requestedBy: oData.requestedBy || "",
-                    approvedBy: oData.approvedBy || "",
-                    accrualCutOffDate: oData.cutoffDate || "",
-                    typeOfRequest: oData.requestType || "",
-                    typeOfParty: oData.typeOfParty || "",
-                    status: iStatus.toString(),
-                    financeApproval: this._calculateFinanceApproval(oData),
-                    supportingDocuments: oData.dmsFolderId     // ← ADD
-                    ? "spa-res:cmis:folderid:" + oData.dmsFolderId
-                    : "",
-                    Lastupdateddate: this._getCurrentDateFormatted(),
-                    accrual_Table: oData.items.map(function(item, index) {
-                        var cdIndicator = item.creditDebit === "Debit" ? "D" : item.creditDebit === "Credit" ? "C" : "";
-                        return {
-                            itemNumber: (index + 1).toString(),
-                            supplierCustomer: item.supplier || "",
-                            purchaseOrderNumber: item.poNumber || "",
-                            purchaseOrderLineItem: item.poLineItem || "",
-                            description: item.description || "",
-                            currency: item.currency || "",
-                            excludeTax: item.excludeTax ? item.excludeTax.toString() : "",
-                            gLAccountCode: item.glAccount || "",
-                            creditDebitIndicator: item.creditDebit || "",
-                            cDIndicator: cdIndicator,
-                            costCentre: item.costCentre || "",
-                            internalOrder: item.internalOrder || "",
-                            wBS: item.wbs || "",
-                            tradingPartner: item.tradingPartner || "",
-                            salesOrderNumber: item.salesOrder || "",
-                            salesOrderItemNumber: item.salesOrderItem || "",
-                            segmentProduct: item.SegmentProduct || "",
-                            segmentShiptoParty: item.segmentShip || "",
-                            segmentSoldtoParty: item.segmentSold || ""
-                        };
-                    })
-                }
-            };
-        },
+_preparePayloadForPatch: function(oData, iStatus) {
+    return {
+        status: "COMPLETED",
+        decision: "submit",
+        context: {
+            affiliate: oData.affiliate || "",
+            companyCode: oData.companyCode || "",
+            nameYourAccrual: oData.nameAccrual || "",
+            requestedBy: oData.requestedBy || "",
+            approvedBy: oData.approvedBy || "",
+            accrualCutOffDate: oData.cutoffDate || "",
+
+            // ✅ TYPE OF ACCRUAL — match POST field name exactly
+            TypeofRequest: oData.accrualType || "",
+            typeOfRequest: oData.accrualType || "",   // extra safety
+            typeOfAccrual: oData.accrualType || "",   // keep old one too
+
+            // ✅ TYPE OF REQUEST (Accrual / Reclass) — keep consistent
+            Requesttype:       oData.typeOfRequest || "",
+            requestType:       oData.typeOfRequest || "",
+            typeOfRequest_1:  oData.typeOfRequest  || "",
+
+            typeOfParty: oData.typeOfParty || "",
+            debitGLType: oData.debitGLType || "",
+            status: iStatus.toString(),
+            financeApproval: this._calculateFinanceApproval(oData),
+
+            supportingDocuments: oData.dmsFolderId
+                ? "spa-res:cmis:folderid:" + oData.dmsFolderId
+                : "",
+
+            Lastupdateddate: this._getCurrentDateFormatted(),
+
+            accrual_Table: oData.items.map(function(item, index) {
+                var cdIndicator = item.creditDebit === "Debit" ? "D" :
+                                  item.creditDebit === "Credit" ? "C" : "";
+                return {
+                    itemNumber: (index + 1).toString(),
+                    supplierCustomer: item.supplier || "",
+                    purchaseOrderNumber: item.poNumber || "",
+                    purchaseOrderLineItem: item.poLineItem || "",
+                    description: item.description || "",
+                    currency: item.currency || "",
+                    excludeTax: item.excludeTax ? item.excludeTax.toString() : "",
+                    gLAccountCode: item.glAccount || "",
+                    creditDebitIndicator: item.creditDebit || "",
+                    cDIndicator: cdIndicator,
+                    costCentre: item.costCentre || "",
+                    internalOrder: item.internalOrder || "",
+                    wBS: item.wbs || "",
+                    tradingPartner: item.tradingPartner || "",
+                    salesOrderNumber: item.salesOrder || "",
+                    salesOrderItemNumber: item.salesOrderItem || "",
+                    segmentProduct: item.SegmentProduct || "",
+                    segmentShiptoParty: item.segmentShip || "",
+                    segmentSoldtoParty: item.segmentSold || ""
+                };
+            })
+        }
+    };
+},
 
 _preparePayloadForProcessAutomation: function(oData, iStatus) {
     var bFinanceApproval = this._calculateFinanceApproval(oData);
-    console.log("Finance Approval flag (POST):", bFinanceApproval);
-
     var sSupportingDocs = oData.dmsFolderId
         ? "spa-res:cmis:folderid:" + oData.dmsFolderId
         : "";
 
-    var payload = {
-        definitionId: WorkflowAPI._processAutomationConfig.definitionId,  // ← only change from original
+    return {
+        definitionId: WorkflowAPI._processAutomationConfig.definitionId,
         context: {
             accrual: {
                 Affiliate: oData.affiliate || "",
@@ -1667,21 +2206,27 @@ _preparePayloadForProcessAutomation: function(oData, iStatus) {
                 RequestedBy: oData.requestedBy || "",
                 ApprovedBy: oData.approvedBy || "",
                 AccrualCutOffDate: oData.cutoffDate || "",
-                TypeofRequest: oData.requestType || "",
+
+                // ✅ TYPE OF ACCRUAL (Commission / Rebate / Adhoc / Technology)
+                TypeofRequest: oData.accrualType || "",
+                typeOfRequest: oData.accrualType || "",  // extra safety
+
+                // ✅ TYPE OF REQUEST (Accrual / Reclass) — clearly separate
+                Requesttype: oData.typeOfRequest || "",
+                requestType: oData.typeOfRequest || "",
+                typeOfRequest_1:  oData.typeOfRequest  || "",
+
                 Partytype: oData.typeOfParty || "",
                 CSNumber: oData.csNumber || "",
+                DebitGL: oData.debitGLType || "",
                 Createddate: this._getCurrentDateFormatted(),
                 Status: iStatus.toString(),
                 financeApproval: bFinanceApproval,
-                Supporting_Documents: sSupportingDocs,  
-                Accrual_Table: oData.items.map(function(item, index) {
-                    var cdIndicator = "";
-                    if (item.creditDebit === "Debit") {
-                        cdIndicator = "D";
-                    } else if (item.creditDebit === "Credit") {
-                        cdIndicator = "C";
-                    }
+                Supporting_Documents: sSupportingDocs,
 
+                Accrual_Table: oData.items.map(function(item, index) {
+                    var cdIndicator = item.creditDebit === "Debit" ? "D" :
+                                      item.creditDebit === "Credit" ? "C" : "";
                     return {
                         ItemnoAcc: (index + 1).toString(),
                         SupplierCustomer: item.supplier || "",
@@ -1707,8 +2252,6 @@ _preparePayloadForProcessAutomation: function(oData, iStatus) {
             }
         }
     };
-
-    return payload;
 },
     });
 });

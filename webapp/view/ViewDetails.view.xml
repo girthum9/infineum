@@ -43,8 +43,11 @@
                             <Label id="_IDGenLabel16" text="Approved by"/>
                             <Text id="_IDGenText28" text="{/approvedBy}"/>
 
-                            <Label id="_IDGenLabel17" text="Type of request"/>
+                            <Label id="_IDGenLabel17" text="Type of Accrual"/>
                             <Text id="_IDGenText29" text="{/requestType}"/>
+
+                            <Label id="_IDGenLabel10" text="Debit GL Type"/>
+                            <Text id="_IDGenText300" text="{/debitGLType}"/>
 
                             <Label id="_IDGenLabel18" text="Type of Party"/>
                             <Text id="_IDGenText30" text="{/typeOfParty}"/>

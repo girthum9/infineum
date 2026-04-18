@@ -66,7 +66,6 @@
                             showSecondaryValues="false"
                             filterSecondaryValues="false"
                             items="{/companyCodes}">
-                            <core:Item id="_IDGenItem19" key="" text="Select Affiliate..." />
                             <core:Item id="_IDGenItem20" key="{CompanyCodeName}" text="{CompanyCodeName}" />
                         </ComboBox>
                         
@@ -108,16 +107,52 @@
                             placeholder="Enter approver email"
                             required="true"
                             change=".onFieldChange" />
-                        
-                        <Label id="_IDGenLabel6" text="Type of request" required="true" class="redAsterisk" />
-                        <Select id="requestTypeSelect"
-                            selectedKey="{/requestType}"
+
+                        <!-- Type of Request (NEW FIELD) -->
+                        <!-- Type of Request (NEW FIELD) -->
+                        <Label id="typeOfRequestLabel" text="Type of Request" required="true" class="redAsterisk" />
+                        <Select id="typeOfRequestSelect"
+                            selectedKey="{/typeOfRequest}"
                             required="true"
-                            change=".onRequestTypeChange">
+                            change=".onFieldChange">
+
                             <items>
-                                <core:Item id="_IDGenItem" key="" text="Select..." />
-                                <core:Item id="_IDGenItem1" key="Accrual" text="Accrual" />
-                                <core:Item id="_IDGenItem2" key="Reclass" text="Reclass" />
+                                <core:Item id="_IDGenItem18" key="" text="Select..." />
+                                <core:Item id="_IDGenItem19" key="Accrual" text="Accrual" />
+                                <core:Item id="_IDGenItem21" key="Reclass" text="Reclass" />
+                            </items>
+                        </Select>
+                        
+                        <Label id="_IDGenLabel6"
+                            text="Type of Accrual"
+                            required="true"
+                            class="redAsterisk"
+                            visible="{= ${/typeOfRequest} !== 'Reclass' }" />
+
+                        <Select id="accrualTypeSelect"
+                        selectedKey="{/accrualType}"
+                        required="true"
+                        visible="{= ${/typeOfRequest} !== 'Reclass' }">
+
+                            <items>
+                                <core:Item id="_IDGenItem1" key="" text="Select..." />
+                                <core:Item id="_IDGenItem2" key="Commission" text="Commission Accruals" />
+                                <core:Item id="_IDGenItem3" key="Rebate" text="Rebate Accruals" />
+                                <core:Item id="_IDGenItem4" key="Adhoc" text="General Ad-Hoc Accruals" />
+                                <core:Item id="_IDGenItem7" key="Technology" text="Technology Accruals" />
+                            </items>
+                        </Select>
+
+                        <Label id="_IDGenLabel7" text="Debit GL Type" required="true" class="redAsterisk" />
+
+                        <Select id="_IDGenSelect"
+                            selectedKey="{/glType}"
+                            required="true"
+                            change=".onGLTypeChangeHeader">
+                            <items>
+                                <core:Item id="_IDGenItem5" key="" text="Select..." />
+                                <core:Item id="_IDGenItem8" key="Fixed" text="Fixed Cost" />
+                                <core:Item id="_IDGenItem9" key="Variable" text="Variable Cost" />
                             </items>
                         </Select>
                         
@@ -281,7 +316,6 @@
         loadItems=".onPONumberOpen"
         visible="{= ${/typeOfParty} === 'Supplier'}"
         items="{purchaseOrders}">
-        <core:Item id="_IDGenItem5" key="" text="Select PO..." />
         <core:Item id="_IDGenItem6" key="{PurchaseOrder}" text="{PurchaseOrder}" />
     </ComboBox>
 
@@ -336,23 +370,18 @@
     valueStateText="{excludeTaxStateText}"
     type="Number"
     change="onExcludeTaxChange" />
-                                        
-                                        <!-- GL Account -->
-                                        <Input id="_IDGenInput3" 
-                                            value="{glAccount}"
-                                            placeholder="GL Code"
-                                            required="true"
-                                            valueState="{glAccountState}"
-                                            valueStateText="{glAccountStateText}"
-                                            change=".onTableFieldChange"
-                                            showSuggestion="true"
-                                            suggest=".onGLAccountSuggest"
-                                            maxSuggestionWidth="400px"
-                                            startSuggestion="0">
-                                            <suggestionItems>
-                                                <core:Item id="_IDGenItemGL" key="{/glAccounts>GLAccount}" text="{/glAccounts>displayText}" />
-                                            </suggestionItems>
-                                        </Input>
+
+<!-- GL Account -->                                        
+<Input id="_IDGenInput10"
+    value="{glAccount}"
+    showSuggestion="true"
+    startSuggestion="0"
+    suggestionItems="{path: 'filteredGLAccounts'}">
+
+    <core:Item id="_IDGenItem"
+        key="{GLAccount}"
+        text="{GLAccount}" />
+</Input>
                                         
                                         <!-- Credit/Debit -->
                                         <Select id="_IDGenSelect1" 
@@ -391,7 +420,6 @@
                                             change=".onTableFieldChange"
                                             loadItems=".onInternalOrderOpen"
                                             items="{/internalOrders}">
-                                            <core:Item id="_IDGenItemIO0" key="" text="Select Internal Order..." />
                                             <core:Item id="_IDGenItemIO" key="{OrderNumber}" text="{displayText}" />
                                         </ComboBox>
                                         
@@ -411,7 +439,6 @@
                                             change=".onSalesOrderChange"
                                             loadItems=".onSalesOrderOpen"
                                             items="{/salesOrders}">
-                                            <core:Item id="_IDGenItemSO0" key="" text="Select Sales Order..." />
                                             <core:Item id="_IDGenItemSO" key="{SalesOrder}" text="{SalesOrder}" />
                                         </ComboBox>
                                         
@@ -443,6 +470,12 @@
                                             editable="false"
                                             enabled="true" />
                                         
+                                            <Button id="_IDGenButton5"
+                                               icon="sap-icon://add"
+                                                type="Accept"
+                                                tooltip="Add Credit Line"
+                                                press=".onAddCreditFromRow" />
+                                        
                                         <!-- Delete Button -->
                                         <Button id="_IDGenButton3" 
                                             icon="sap-icon://delete"
@@ -470,7 +503,7 @@
                 buttonText="Upload"
                 buttonOnly="true"
                 iconOnly="false"
-                multiple="false"
+                multiple="true"
                 change=".onDMSFileSelected"
                 style="Emphasized" />
         </Toolbar>
