@@ -13,117 +13,117 @@ sap.ui.define([
 
   return Controller.extend("accrual.controller.Dashboard", {
 
-onInit: function () {
-  const oModel = new JSONModel({
-    totalrequest: 0,
-    draft: 0,
-    rejected: 0,
-    completed: 0,
-    pendingApproval: 0,
-    requests: [],
-    lastRefresh: null,
-    filtersVisible: false  // ADD THIS LINE
-  });
+    onInit: function () {
+      const oModel = new JSONModel({
+        totalrequest: 0,
+        draft: 0,
+        rejected: 0,
+        completed: 0,
+        pendingApproval: 0,
+        requests: [],
+        lastRefresh: null,
+        filtersVisible: false
+      });
 
-  this.getView().setModel(oModel);
-  
-  // Load data from API
-  this._loadDataFromAPI();
-},
+      this.getView().setModel(oModel);
 
-onClearFilters: function () {
-  // Clear the search field
-  const oSearchField = this.byId("searchField");
-  if (oSearchField) {
-    oSearchField.setValue("");
-  }
+      // Load data from API
+      this._loadDataFromAPI();
+    },
 
-  // Clear dropdown filters
-  this.byId("statusFilter").setSelectedKey("All");
-  this.byId("requestTypeFilter").setSelectedKey("All");
-  this.byId("partyTypeFilter").setSelectedKey("All");
+    onClearFilters: function () {
+      // Clear the search field
+      const oSearchField = this.byId("searchField");
+      if (oSearchField) {
+        oSearchField.setValue("");
+      }
 
-  // Clear table filters
-  const oTable = this.byId("requestsTable");
-  const oBinding = oTable.getBinding("items");
-  
-  if (oBinding) {
-    oBinding.filter([]);
-  }
+      // Clear dropdown filters
+      this.byId("statusFilter").setSelectedKey("All");
+      this.byId("requestTypeFilter").setSelectedKey("All");
+      this.byId("partyTypeFilter").setSelectedKey("All");
 
-  MessageToast.show("All filters cleared");
-},
+      // Clear table filters
+      const oTable = this.byId("requestsTable");
+      const oBinding = oTable.getBinding("items");
+
+      if (oBinding) {
+        oBinding.filter([]);
+      }
+
+      MessageToast.show("All filters cleared");
+    },
 
     /** Refresh button handler */
-onRefreshPress: function() {
-  // Show message
-  MessageToast.show("Refreshing entire page...");
-  
-  // Show busy indicator on the entire view/page
-  this.getView().setBusy(true);
-  
-  // Show busy indicator on KPI tiles
-  this.byId("TotalRequestTile").setState("Loading");
-  this.byId("draftTile").setState("Loading");
-  this.byId("pendingApprovalTile").setState("Loading");
-  this.byId("rejectedTile").setState("Loading");
-  this.byId("completedTile").setState("Loading");
-  
-  // Show busy indicator on table
-  this.byId("requestsTable").setBusy(true);
+    onRefreshPress: function () {
+      // Show message
+      MessageToast.show("Refreshing entire page...");
 
-  // Clear all filters and search
-  this.byId("searchField").setValue("");
-  this.byId("statusFilter").setSelectedKey("All");
-  this.byId("requestTypeFilter").setSelectedKey("All");
-  this.byId("partyTypeFilter").setSelectedKey("All");
-  
-  // Clear table filters to ensure all data is shown
-  const oTable = this.byId("requestsTable");
-  const oBinding = oTable.getBinding("items");
-  if (oBinding) {
-    oBinding.filter([]);
-  }
+      // Show busy indicator on the entire view/page
+      this.getView().setBusy(true);
 
-  // Reload data from API - this will refresh all line items
-  this._loadDataFromAPI();
-},
+      // Show busy indicator on KPI tiles
+      this.byId("TotalRequestTile").setState("Loading");
+      this.byId("draftTile").setState("Loading");
+      this.byId("pendingApprovalTile").setState("Loading");
+      this.byId("rejectedTile").setState("Loading");
+      this.byId("completedTile").setState("Loading");
 
-_loadDataFromAPI: function() {
+      // Show busy indicator on table
+      this.byId("requestsTable").setBusy(true);
 
-  this.getView().setBusy(true);
+      // Clear all filters and search
+      this.byId("searchField").setValue("");
+      this.byId("statusFilter").setSelectedKey("All");
+      this.byId("requestTypeFilter").setSelectedKey("All");
+      this.byId("partyTypeFilter").setSelectedKey("All");
 
-  WorkflowAPI.fetchAccrualRequests()
+      // Clear table filters to ensure all data is shown
+      const oTable = this.byId("requestsTable");
+      const oBinding = oTable.getBinding("items");
+      if (oBinding) {
+        oBinding.filter([]);
+      }
 
-  .then(data => {
-    this._processAPIData(data);
-    this.getView().setBusy(false);
-  })
+      // Reload data from API - this will refresh all line items
+      this._loadDataFromAPI();
+    },
 
-  .catch(error => {
+    _loadDataFromAPI: function () {
 
-    console.error("Error loading data:", error);
+      this.getView().setBusy(true);
 
-    this.getView().setBusy(false);
+      WorkflowAPI.fetchAccrualRequests()
 
-    this.byId("TotalRequestTile").setState("Failed");
-    this.byId("draftTile").setState("Failed");
-    this.byId("pendingApprovalTile").setState("Failed");
-    this.byId("rejectedTile").setState("Failed");
-    this.byId("completedTile").setState("Failed");
-    this.byId("requestsTable").setBusy(false);
+        .then(data => {
+          this._processAPIData(data);
+          this.getView().setBusy(false);
+        })
 
-    MessageBox.error(
-      "Failed to load data from server.\n\nError: " + error.message
-    );
+        .catch(error => {
 
-  });
+          console.error("Error loading data:", error);
 
-},
+          this.getView().setBusy(false);
 
-    _processAPIData: function(data) {
+          this.byId("TotalRequestTile").setState("Failed");
+          this.byId("draftTile").setState("Failed");
+          this.byId("pendingApprovalTile").setState("Failed");
+          this.byId("rejectedTile").setState("Failed");
+          this.byId("completedTile").setState("Failed");
+          this.byId("requestsTable").setBusy(false);
+
+          MessageBox.error(
+            "Failed to load data from server.\n\nError: " + error.message
+          );
+
+        });
+
+    },
+
+    _processAPIData: function (data) {
       const aResults = data.d && data.d.results ? data.d.results : [];
-      
+
       // Transform API data to match our model
       const aTransformedData = aResults.map(item => {
         return {
@@ -146,31 +146,31 @@ _loadDataFromAPI: function() {
       });
 
       // Sort by lastUpdatedTimestamp (newest first)
-      
-aTransformedData.sort((a, b) => {
-  // Extract the numeric part from Request No (e.g., "AR-2025-0003" -> 3)
-  const getRequestNumber = (requestNo) => {
-    if (!requestNo) return 0;
-    // Split by '-' and get the last part
-    const parts = requestNo.split('-');
-    const numericPart = parts[parts.length - 1];
-    
-    // Convert to integer
-    return parseInt(numericPart, 10) || 0;
-  };
-  
-  const numA = getRequestNumber(a.requestNo);
-  const numB = getRequestNumber(b.requestNo);
-  
-  // Sort descending (highest number first)
-  return numB - numA;
-});
 
-console.log("Sorted records by Request No (first 10):", aTransformedData.slice(0, 10).map(r => ({
-  requestNo: r.requestNo,
-  affiliate: r.affiliate,
-  status: r.status
-})));
+      aTransformedData.sort((a, b) => {
+        // Extract the numeric part from Request No (e.g., "AR-2025-0003" -> 3)
+        const getRequestNumber = (requestNo) => {
+          if (!requestNo) return 0;
+          // Split by '-' and get the last part
+          const parts = requestNo.split('-');
+          const numericPart = parts[parts.length - 1];
+
+          // Convert to integer
+          return parseInt(numericPart, 10) || 0;
+        };
+
+        const numA = getRequestNumber(a.requestNo);
+        const numB = getRequestNumber(b.requestNo);
+
+        // Sort descending (highest number first)
+        return numB - numA;
+      });
+
+      console.log("Sorted records by Request No (first 10):", aTransformedData.slice(0, 10).map(r => ({
+        requestNo: r.requestNo,
+        affiliate: r.affiliate,
+        status: r.status
+      })));
 
       // Calculate KPI counts
       const oKPICounts = this._calculateKPICounts(aTransformedData);
@@ -183,7 +183,7 @@ console.log("Sorted records by Request No (first 10):", aTransformedData.slice(0
       oModel.setProperty("/rejected", oKPICounts.rejected);
       oModel.setProperty("/completed", oKPICounts.completed);
       oModel.setProperty("/pendingApproval", oKPICounts.pendingApproval);
-      
+
       // Update last refresh timestamp
       const oNow = new Date();
       oModel.setProperty("/lastRefresh", oNow.toLocaleTimeString());
@@ -199,57 +199,57 @@ console.log("Sorted records by Request No (first 10):", aTransformedData.slice(0
       MessageToast.show("Data refreshed successfully: " + aTransformedData.length + " records");
     },
 
-_formatDate: function(sDate) {
-  if (!sDate) return "";
-  
-  try {
-    let oDate;
-    
-    // Handle SAP timestamp format: "20260217035316.0627900"
-    if (typeof sDate === "string" && /^\d{14}(\.\d+)?$/.test(sDate)) {
-      const sYear  = sDate.substring(0, 4);
-      const sMonth = sDate.substring(4, 6);
-      const sDay   = sDate.substring(6, 8);
-      oDate = new Date(sYear, sMonth - 1, sDay);
-    }
-    // Handle OData /Date(timestamp)/ format
-    else if (typeof sDate === "string" && sDate.indexOf("/Date(") !== -1) {
-      const matches = sDate.match(/\/Date\((\d+)\)\//);
-      if (matches && matches[1]) {
-        oDate = new Date(parseInt(matches[1], 10));
-      }
-    }
-    // Handle DD-MM-YYYY format (like Cdate: "02-17-2026")
-    else if (typeof sDate === "string" && /^\d{2}-\d{2}-\d{4}$/.test(sDate)) {
-      const parts = sDate.split("-");
-      oDate = new Date(parts[2], parts[0] - 1, parts[1]);
-    }
-    // Handle numeric timestamp
-    else if (typeof sDate === "number") {
-      oDate = new Date(sDate);
-    }
-    // Fallback
-    else {
-      oDate = new Date(sDate);
-    }
-    
-    if (!oDate || isNaN(oDate.getTime())) return "";
-    
-    const sDay   = String(oDate.getDate()).padStart(2, '0');
-    const sMonth = String(oDate.getMonth() + 1).padStart(2, '0');
-    const sYear  = oDate.getFullYear();
-    
-    return sDay + "/" + sMonth + "/" + sYear;
-  } catch (e) {
-    return "";
-  }
-},
+    _formatDate: function (sDate) {
+      if (!sDate) return "";
 
-    _getStatusState: function(sStatus) {
+      try {
+        let oDate;
+
+        // Handle SAP timestamp format: "20260217035316.0627900"
+        if (typeof sDate === "string" && /^\d{14}(\.\d+)?$/.test(sDate)) {
+          const sYear = sDate.substring(0, 4);
+          const sMonth = sDate.substring(4, 6);
+          const sDay = sDate.substring(6, 8);
+          oDate = new Date(sYear, sMonth - 1, sDay);
+        }
+        // Handle OData /Date(timestamp)/ format
+        else if (typeof sDate === "string" && sDate.indexOf("/Date(") !== -1) {
+          const matches = sDate.match(/\/Date\((\d+)\)\//);
+          if (matches && matches[1]) {
+            oDate = new Date(parseInt(matches[1], 10));
+          }
+        }
+        // Handle DD-MM-YYYY format (like Cdate: "02-17-2026")
+        else if (typeof sDate === "string" && /^\d{2}-\d{2}-\d{4}$/.test(sDate)) {
+          const parts = sDate.split("-");
+          oDate = new Date(parts[2], parts[0] - 1, parts[1]);
+        }
+        // Handle numeric timestamp
+        else if (typeof sDate === "number") {
+          oDate = new Date(sDate);
+        }
+        // Fallback
+        else {
+          oDate = new Date(sDate);
+        }
+
+        if (!oDate || isNaN(oDate.getTime())) return "";
+
+        const sDay = String(oDate.getDate()).padStart(2, '0');
+        const sMonth = String(oDate.getMonth() + 1).padStart(2, '0');
+        const sYear = oDate.getFullYear();
+
+        return sDay + "/" + sMonth + "/" + sYear;
+      } catch (e) {
+        return "";
+      }
+    },
+
+    _getStatusState: function (sStatus) {
       if (!sStatus) return "None";
-      
+
       const sStatusLower = sStatus.toLowerCase();
-      
+
       if (sStatusLower.includes("complete") || sStatusLower.includes("approved") || sStatusLower.includes("success")) {
         return "Success";
       } else if (sStatusLower.includes("reject") || sStatusLower.includes("error") || sStatusLower.includes("fail")) {
@@ -259,11 +259,11 @@ _formatDate: function(sDate) {
       } else if (sStatusLower.includes("draft") || sStatusLower.includes("new")) {
         return "None";
       }
-      
+
       return "None";
     },
 
-    _calculateKPICounts: function(aData) {
+    _calculateKPICounts: function (aData) {
       const oCounts = {
         draft: 0,
         rejected: 0,
@@ -273,7 +273,7 @@ _formatDate: function(sDate) {
 
       aData.forEach(item => {
         const sStatus = (item.status || "").toLowerCase();
-        
+
         if (sStatus.includes("draft") || sStatus.includes("new")) {
           oCounts.draft++;
         } else if (sStatus.includes("reject") || sStatus.includes("declined")) {
@@ -288,15 +288,15 @@ _formatDate: function(sDate) {
       return oCounts;
     },
 
-    onRequestPress: function(oEvent) {
+    onRequestPress: function (oEvent) {
       const oItem = oEvent.getSource();
       const oContext = oItem.getBindingContext();
       const oRequest = oContext.getObject();
-      
+
       MessageToast.show("Request: " + oRequest.requestNo);
     },
 
-    onActionsPress: function(oEvent) {
+    onActionsPress: function (oEvent) {
       const oButton = oEvent.getSource();
       const oContext = oButton.getBindingContext();
       const oRequest = oContext.getObject();
@@ -312,40 +312,40 @@ _formatDate: function(sDate) {
         aButtons.push(
           new Button({
             text: "Workflow Logs",
-            press: function() {
+            press: function () {
               this._navigateToPage("WorkflowLogs", sInstantId);
             }.bind(this)
           }),
           new Button({
             text: "View Details",
-            press: function() {
+            press: function () {
               this._navigateToPage("ViewDetails", sInstantId);
             }.bind(this)
           }),
           new Button({
-  text: "Recall",
-  press: function() {
-    this._triggerIntegrationFlow(sInstantId);
-  }.bind(this)
-})
+            text: "Recall",
+            press: function () {
+              this._triggerIntegrationFlow(sInstantId);
+            }.bind(this)
+          })
         );
       } else if (sStatusLower.includes("draft") || sStatusLower.includes("new")) {
         aButtons.push(
           new Button({
             text: "Edit",
-            press: function() {
+            press: function () {
               this._navigateToPage("Draft", sInstantId);
             }.bind(this)
           }),
           new Button({
             text: "Workflow Logs",
-            press: function() {
+            press: function () {
               this._navigateToPage("WorkflowLogs", sInstantId);
             }.bind(this)
           }),
           new Button({
             text: "View Details",
-            press: function() {
+            press: function () {
               this._navigateToPage("ViewDetails", sInstantId);
             }.bind(this)
           })
@@ -354,19 +354,19 @@ _formatDate: function(sDate) {
         aButtons.push(
           new Button({
             text: "Workflow Logs",
-            press: function() {
+            press: function () {
               this._navigateToPage("WorkflowLogs", sInstantId);
             }.bind(this)
           }),
           new Button({
             text: "View Details",
-            press: function() {
+            press: function () {
               this._navigateToPage("ViewDetails", sInstantId);
             }.bind(this)
           }),
-            new Button({
+          new Button({
             text: "Copy",
-            press: function() {
+            press: function () {
               this._navigateToPage("Copy", sInstantId);
             }.bind(this)
           }),
@@ -375,19 +375,19 @@ _formatDate: function(sDate) {
         aButtons.push(
           new Button({
             text: "Edit",
-            press: function() {
+            press: function () {
               this._navigateToPage("Draft", sInstantId);
             }.bind(this)
           }),
           new Button({
             text: "Workflow Logs",
-            press: function() {
+            press: function () {
               this._navigateToPage("WorkflowLogs", sInstantId);
             }.bind(this)
           }),
           new Button({
             text: "View Details",
-            press: function() {
+            press: function () {
               this._navigateToPage("ViewDetails", sInstantId);
             }.bind(this)
           })
@@ -396,7 +396,7 @@ _formatDate: function(sDate) {
         aButtons.push(
           new Button({
             text: "View Details",
-            press: function() {
+            press: function () {
               this._navigateToPage("ViewDetails", sInstantId);
             }.bind(this)
           })
@@ -412,7 +412,7 @@ _formatDate: function(sDate) {
         this.getView().addDependent(this._actionSheet);
       } else {
         this._actionSheet.removeAllButtons();
-        aButtons.forEach(function(oBtn) {
+        aButtons.forEach(function (oBtn) {
           this._actionSheet.addButton(oBtn);
         }.bind(this));
       }
@@ -420,7 +420,7 @@ _formatDate: function(sDate) {
       this._actionSheet.openBy(oButton);
     },
 
-    _navigateToPage: function(sRouteName, sInstantId) {
+    _navigateToPage: function (sRouteName, sInstantId) {
       if (this._actionSheet) {
         this._actionSheet.close();
       }
@@ -429,61 +429,61 @@ _formatDate: function(sDate) {
       oRouter.navTo(sRouteName, {
         instantId: sInstantId
       });
-      
+
       MessageToast.show("Navigating to " + sRouteName + " with ID: " + sInstantId);
     },
 
-_triggerIntegrationFlow: function(sInstantId) {
+    _triggerIntegrationFlow: function (sInstantId) {
 
-  if (this._actionSheet) {
-    this._actionSheet.close();
-  }
+      if (this._actionSheet) {
+        this._actionSheet.close();
+      }
 
-  MessageBox.confirm(
-    "Are you sure you want to recall the request for Instance ID: " + sInstantId + "?",
-    {
-      title: "Confirm Recall",
-      onClose: function(sAction) {
+      MessageBox.confirm(
+        "Are you sure you want to recall the request for Instance ID: " + sInstantId + "?",
+        {
+          title: "Confirm Recall",
+          onClose: function (sAction) {
 
-        if (sAction === MessageBox.Action.OK) {
+            if (sAction === MessageBox.Action.OK) {
 
-          this.getView().setBusy(true);
+              this.getView().setBusy(true);
 
-          WorkflowAPI.recallWorkflowInstance(sInstantId)
+              WorkflowAPI.recallWorkflowInstance(sInstantId)
 
-          .then(() => {
+                .then(() => {
 
-            this.getView().setBusy(false);
+                  this.getView().setBusy(false);
 
-            MessageToast.show(
-              "Request recalled successfully for: " + sInstantId
-            );
+                  MessageToast.show(
+                    "Request recalled successfully for: " + sInstantId
+                  );
 
-          })
+                })
 
-          .catch(error => {
+                .catch(error => {
 
-            this.getView().setBusy(false);
+                  this.getView().setBusy(false);
 
-            MessageBox.error(
-              "Failed to recall request.\n\nError: " + error.message
-            );
+                  MessageBox.error(
+                    "Failed to recall request.\n\nError: " + error.message
+                  );
 
-          });
+                });
 
+            }
+
+          }.bind(this)
         }
+      );
 
-      }.bind(this)
-    }
-  );
+    },
 
-},
-
-    onSearch: function(oEvent) {
+    onSearch: function (oEvent) {
       const sQuery = oEvent.getParameter("query") || oEvent.getParameter("newValue") || "";
       const oTable = this.byId("requestsTable");
       const oBinding = oTable.getBinding("items");
-      
+
       if (!oBinding) {
         return;
       }
@@ -505,7 +505,7 @@ _triggerIntegrationFlow: function(sInstantId) {
           new Filter("dateCreated", FilterOperator.Contains, sQuery),
           new Filter("lastUpdated", FilterOperator.Contains, sQuery)
         ];
-        
+
         aFilters.push(new Filter({
           filters: aSearchFilters,
           and: false
@@ -515,21 +515,21 @@ _triggerIntegrationFlow: function(sInstantId) {
       this._applyFiltersWithSearch(aFilters);
     },
 
-    onStatusFilterChange: function(oEvent) {
+    onStatusFilterChange: function (oEvent) {
       this._applyFilters();
     },
 
-    onRequestTypeFilterChange: function(oEvent) {
+    onRequestTypeFilterChange: function (oEvent) {
       this._applyFilters();
     },
 
-    onPartyTypeFilterChange: function(oEvent) {
+    onPartyTypeFilterChange: function (oEvent) {
       this._applyFilters();
     },
 
-    _applyFilters: function() {
+    _applyFilters: function () {
       const aFilters = [];
-      
+
       const sStatusKey = this.byId("statusFilter").getSelectedKey();
       if (sStatusKey && sStatusKey !== "All") {
         aFilters.push(new Filter("status", FilterOperator.Contains, sStatusKey));
@@ -547,7 +547,7 @@ _triggerIntegrationFlow: function(sInstantId) {
 
       const oSearchField = this.byId("searchField");
       const sSearchQuery = oSearchField.getValue();
-      
+
       if (sSearchQuery && sSearchQuery.length > 0) {
         const aSearchFilters = [
           new Filter("requestNo", FilterOperator.Contains, sSearchQuery),
@@ -563,7 +563,7 @@ _triggerIntegrationFlow: function(sInstantId) {
           new Filter("dateCreated", FilterOperator.Contains, sSearchQuery),
           new Filter("lastUpdated", FilterOperator.Contains, sSearchQuery)
         ];
-        
+
         aFilters.push(new Filter({
           filters: aSearchFilters,
           and: false
@@ -572,19 +572,19 @@ _triggerIntegrationFlow: function(sInstantId) {
 
       const oTable = this.byId("requestsTable");
       const oBinding = oTable.getBinding("items");
-      
+
       if (oBinding) {
         oBinding.filter(aFilters);
       }
     },
 
-    _applyFiltersWithSearch: function(aSearchFilters) {
+    _applyFiltersWithSearch: function (aSearchFilters) {
       const aFilters = [];
-      
+
       if (aSearchFilters && aSearchFilters.length > 0) {
         aFilters.push(aSearchFilters[0]);
       }
-      
+
       const sStatusKey = this.byId("statusFilter").getSelectedKey();
       if (sStatusKey && sStatusKey !== "All") {
         aFilters.push(new Filter("status", FilterOperator.Contains, sStatusKey));
@@ -602,13 +602,13 @@ _triggerIntegrationFlow: function(sInstantId) {
 
       const oTable = this.byId("requestsTable");
       const oBinding = oTable.getBinding("items");
-      
+
       if (oBinding) {
         oBinding.filter(aFilters);
       }
     },
 
-    onKPIPress: function(oEvent) {
+    onKPIPress: function (oEvent) {
       const sTileId = oEvent.getSource().getId();
       let sStatusFilter = "";
 
@@ -616,14 +616,14 @@ _triggerIntegrationFlow: function(sInstantId) {
         // Clear all filters to show all requests
         const oSearchField = this.byId("searchField");
         oSearchField.setValue("");
-        
+
         this.byId("statusFilter").setSelectedKey("All");
         this.byId("requestTypeFilter").setSelectedKey("All");
         this.byId("partyTypeFilter").setSelectedKey("All");
-        
+
         const oTable = this.byId("requestsTable");
         const oBinding = oTable.getBinding("items");
-        
+
         if (oBinding) {
           oBinding.filter([]);
         }
@@ -643,17 +643,17 @@ _triggerIntegrationFlow: function(sInstantId) {
       if (sStatusFilter) {
         const oSearchField = this.byId("searchField");
         oSearchField.setValue("");
-        
+
         const oStatusFilter = this.byId("statusFilter");
         oStatusFilter.setSelectedKey("All");
-        
+
         this.byId("requestTypeFilter").setSelectedKey("All");
         this.byId("partyTypeFilter").setSelectedKey("All");
-        
+
         const aFilters = [new Filter("status", FilterOperator.Contains, sStatusFilter)];
         const oTable = this.byId("requestsTable");
         const oBinding = oTable.getBinding("items");
-        
+
         if (oBinding) {
           oBinding.filter(aFilters);
         }

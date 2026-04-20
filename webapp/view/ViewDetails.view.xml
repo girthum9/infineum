@@ -19,11 +19,7 @@
 
                 <!-- Request Information -->
                 <Panel id="_IDGenPanel1" headerText="Request Information" class="sapUiResponsiveMargin">
-                    <f:SimpleForm id="headerForm1"
-                        editable="false"
-                        layout="ResponsiveGridLayout"
-                        labelSpanXL="4" labelSpanL="4" labelSpanM="4" labelSpanS="12"
-                        columnsXL="2" columnsL="2" columnsM="1">
+                    <f:SimpleForm id="headerForm1" editable="false" layout="ResponsiveGridLayout" labelSpanXL="4" labelSpanL="4" labelSpanM="4" labelSpanS="12" columnsXL="2" columnsL="2" columnsM="1">
                         <f:content>
                             <Label id="_IDGenLabel11" text="Affiliate"/>
                             <Text id="_IDGenText" text="{/affiliate}"/>
@@ -59,30 +55,59 @@
                 <Panel id="_IDGenPanel2" headerText="Line Items" class="sapUiResponsiveMargin">
                     <content>
                         <ScrollContainer id="_IDGenScrollContainer1" horizontal="true" vertical="false" height="auto" class="sapUiSmallMargin">
-                            <Table id="itemsTable1"
-                                items="{/items}"
-                                growing="true"
-                                growingThreshold="20"
-                                noDataText="No line items found"
-                                class="sapUiResponsiveMargin">
+                            <Table id="itemsTable1" items="{/items}" growing="true" growingThreshold="20" noDataText="No line items found" class="sapUiResponsiveMargin">
                                 <columns>
-                                    <Column id="_IDGenColumn16" width="13rem"><Text id="_IDGenText31" text="Supplier/Customer"/></Column>
-                                    <Column id="_IDGenColumn22" width="11rem"><Text id="_IDGenText37" text="Purchase Order Number"/></Column>
-                                    <Column id="_IDGenColumn100" width="11rem"><Text id="_IDGenText101" text="Purchase Order Line Item"/></Column>
-                                    <Column id="_IDGenColumn17" width="13rem"><Text id="_IDGenText32" text="Description"/></Column>
-                                    <Column id="_IDGenColumn18" width="9rem"><Text id="_IDGenText33" text="Currency"/></Column>
-                                    <Column id="_IDGenColumn19" width="10rem"><Text id="_IDGenText34" text="Exclude Tax"/></Column>
-                                    <Column id="_IDGenColumn20" width="11rem"><Text id="_IDGenText35" text="GL Account Code"/></Column>
-                                    <Column id="_IDGenColumn21" width="10rem"><Text id="_IDGenText36" text="Credit/Debit"/></Column>
-                                    <Column id="_IDGenColumn23" width="9rem"><Text id="_IDGenText38" text="Cost Centre"/></Column>
-                                    <Column id="_IDGenColumn24" width="11rem"><Text id="_IDGenText39" text="Internal Order"/></Column>
-                                    <Column id="_IDGenColumn25" width="9rem"><Text id="_IDGenText40" text="WBS"/></Column>
-                                    <Column id="_IDGenColumn26" width="11rem"><Text id="_IDGenText41" text="Trading Partner"/></Column>
-                                    <Column id="_IDGenColumn27" width="11rem"><Text id="_IDGenText42" text="Sales Order Number"/></Column>
-                                    <Column id="_IDGenColumn28" width="11rem"><Text id="_IDGenText43" text="Sales Order Item Number"/></Column>
-                                    <Column id="_IDGenColumn29" width="11rem"><Text id="_IDGenText44" text="Segment-Product"/></Column>
-                                    <Column id="_IDGenColumn30" width="11rem"><Text id="_IDGenText45" text="Segment-Ship to Party"/></Column>
-                                    <Column id="_IDGenColumn31" width="11rem"><Text id="_IDGenText46" text="Segment-Sold to Party"/></Column>
+                                    <Column id="_IDGenColumn16" width="13rem">
+                                        <Text id="_IDGenText31" text="Supplier/Customer"/>
+                                    </Column>
+                                    <Column id="_IDGenColumn22" width="11rem">
+                                        <Text id="_IDGenText37" text="Purchase Order Number"/>
+                                    </Column>
+                                    <Column id="_IDGenColumn100" width="11rem">
+                                        <Text id="_IDGenText101" text="Purchase Order Line Item"/>
+                                    </Column>
+                                    <Column id="_IDGenColumn17" width="13rem">
+                                        <Text id="_IDGenText32" text="Description"/>
+                                    </Column>
+                                    <Column id="_IDGenColumn18" width="9rem">
+                                        <Text id="_IDGenText33" text="Currency"/>
+                                    </Column>
+                                    <Column id="_IDGenColumn19" width="10rem">
+                                        <Text id="_IDGenText34" text="Exclude Tax"/>
+                                    </Column>
+                                    <Column id="_IDGenColumn20" width="11rem">
+                                        <Text id="_IDGenText35" text="GL Account Code"/>
+                                    </Column>
+                                    <Column id="_IDGenColumn21" width="10rem">
+                                        <Text id="_IDGenText36" text="Credit/Debit"/>
+                                    </Column>
+                                    <Column id="_IDGenColumn23" width="9rem">
+                                        <Text id="_IDGenText38" text="Cost Centre"/>
+                                    </Column>
+                                    <Column id="_IDGenColumn24" width="11rem">
+                                        <Text id="_IDGenText39" text="Internal Order"/>
+                                    </Column>
+                                    <Column id="_IDGenColumn25" width="9rem">
+                                        <Text id="_IDGenText40" text="WBS"/>
+                                    </Column>
+                                    <Column id="_IDGenColumn26" width="11rem">
+                                        <Text id="_IDGenText41" text="Trading Partner"/>
+                                    </Column>
+                                    <Column id="_IDGenColumn27" width="11rem">
+                                        <Text id="_IDGenText42" text="Sales Order Number"/>
+                                    </Column>
+                                    <Column id="_IDGenColumn28" width="11rem">
+                                        <Text id="_IDGenText43" text="Sales Order Item Number"/>
+                                    </Column>
+                                    <Column id="_IDGenColumn29" width="11rem">
+                                        <Text id="_IDGenText44" text="Segment-Product"/>
+                                    </Column>
+                                    <Column id="_IDGenColumn30" width="11rem">
+                                        <Text id="_IDGenText45" text="Segment-Ship to Party"/>
+                                    </Column>
+                                    <Column id="_IDGenColumn31" width="11rem">
+                                        <Text id="_IDGenText46" text="Segment-Sold to Party"/>
+                                    </Column>
                                 </columns>
                                 <items>
                                     <ColumnListItem id="_IDGenColumnListItem1">
@@ -118,45 +143,23 @@
                         <VBox id="_IDGenVBox2" class="sapUiSmallMargin">
 
                             <!-- No documents message -->
-                            <VBox id="noDocsBox"
-                                visible="{= ${/dmsDocuments} !== null &amp;&amp; ${/dmsDocuments/length} === 0 }">
-                                <MessageStrip
-                                    id="noDocsStrip"
-                                    text="No supporting documents attached to this request."
-                                    type="Information"
-                                    showIcon="true"
-                                    showCloseButton="false"
-                                    class="sapUiSmallMarginBottom"/>
+                            <VBox id="noDocsBox" visible="{= ${/dmsDocuments} !== null &amp;&amp; ${/dmsDocuments/length} === 0 }">
+                                <MessageStrip id="noDocsStrip" text="No supporting documents attached to this request." type="Information" showIcon="true" showCloseButton="false" class="sapUiSmallMarginBottom"/>
                             </VBox>
 
                             <!-- Documents list -->
-                            <List id="vdDmsList"
-                                items="{/dmsDocuments}"
-                                noDataText="No supporting documents found"
-                                showSeparators="Inner">
+                            <List id="vdDmsList" items="{/dmsDocuments}" noDataText="No supporting documents found" showSeparators="Inner">
                                 <items>
                                     <CustomListItem id="_IDGenCustomListItem" type="Inactive">
-                                        <HBox id="_IDGenHBox7" alignItems="Center"
-                                              justifyContent="SpaceBetween"
-                                              class="sapUiSmallMarginBegin sapUiSmallMarginEnd sapUiTinyMarginTopBottom">
+                                        <HBox id="_IDGenHBox7" alignItems="Center" justifyContent="SpaceBetween" class="sapUiSmallMarginBegin sapUiSmallMarginEnd sapUiTinyMarginTopBottom">
 
                                             <!-- File icon + details -->
                                             <HBox id="_IDGenHBox9" alignItems="Center">
-                                                <core:Icon id="_IDGenIcon"
-                                                    src="sap-icon://attachment"
-                                                    size="1.5rem"
-                                                    color="#0854a0"
-                                                    class="sapUiSmallMarginEnd"/>
+                                                <core:Icon id="_IDGenIcon" src="sap-icon://attachment" size="1.5rem" color="#0854a0" class="sapUiSmallMarginEnd"/>
                                                 <VBox id="_IDGenVBox3">
-                                                    <Text id="_IDGenText63" text="{fileName}"
-                                                          wrapping="false"
-                                                          class="sapUiTinyMarginBottom"
-                                                          renderWhitespace="false"/>
+                                                    <Text id="_IDGenText63" text="{fileName}" wrapping="false" class="sapUiTinyMarginBottom" renderWhitespace="false"/>
                                                     <HBox id="_IDGenHBox10">
-                                                        <ObjectStatus id="_IDGenObjectStatus1"
-                                                            text="{fileType}"
-                                                            state="Information"
-                                                            class="sapUiTinyMarginEnd"/>
+                                                        <ObjectStatus id="_IDGenObjectStatus1" text="{fileType}" state="Information" class="sapUiTinyMarginEnd"/>
                                                         <Text id="_IDGenText95" text="·" class="sapUiTinyMarginEnd sapUiTinyMarginBegin"/>
                                                         <Text id="_IDGenText96" text="{fileSize}" class="sapUiTinyMarginEnd"/>
                                                         <Text id="_IDGenText97" text="·" class="sapUiTinyMarginEnd sapUiTinyMarginBegin"/>
@@ -166,11 +169,7 @@
                                             </HBox>
 
                                             <!-- Download button only -->
-                                            <Button id="_IDGenButton6"
-                                                icon="sap-icon://download"
-                                                type="Transparent"
-                                                tooltip="Download"
-                                                press=".onDMSDownload"/>
+                                            <Button id="_IDGenButton6" icon="sap-icon://download" type="Transparent" tooltip="Download" press=".onDMSDownload"/>
                                         </HBox>
                                     </CustomListItem>
                                 </items>
@@ -183,11 +182,7 @@
                 <!-- Action Buttons -->
                 <Toolbar id="_IDGenToolbar2" class="sapUiSmallMarginTop">
                     <ToolbarSpacer id="_IDGenToolbarSpacer4"/>
-                    <Button id="_IDGenButton7"
-                            text="Back to Dashboard"
-                            press=".onNavBack"
-                            icon="sap-icon://home"
-                            type="Emphasized"/>
+                    <Button id="_IDGenButton7" text="Back to Dashboard" press=".onNavBack" icon="sap-icon://home" type="Emphasized"/>
                 </Toolbar>
 
             </VBox>

@@ -39,9 +39,7 @@
 						<Input id="Copy_approvedByInput" value="{/approvedBy}" placeholder="Enter approver email" required="true" change=".onFieldChange" />
 						<!-- Type of Request (NEW FIELD) -->
 						<Label id="Copy_typeOfRequestLabel" text="Type of Request" required="true" class="redAsterisk" />
-						<Select id="Copy_typeOfRequestSelect"
-							selectedKey="{/typeOfRequest}"
-							change=".onTypeOfRequestChange">
+						<Select id="Copy_typeOfRequestSelect" selectedKey="{/typeOfRequest}" change=".onTypeOfRequestChange">
 
 							<items>
 								<core:Item id="_IDGenItem22" key="" text="Select..." />
@@ -49,16 +47,9 @@
 								<core:Item id="_IDGenItem24" key="Reclass" text="Reclass" />
 							</items>
 						</Select>
-							<Label id="Copy_IDGenLabel6"
-								text="Type of Accrual"
-								required="true"
-								class="redAsterisk"
-								visible="{= ${/typeOfRequest} !== 'Reclass' }" />
+						<Label id="Copy_IDGenLabel6" text="Type of Accrual" required="true" class="redAsterisk" visible="{= ${/typeOfRequest} !== 'Reclass' }" />
 
-							<Select id="Copy_requestTypeSelect"
-								selectedKey="{/requestType}"
-								required="true"
-								visible="{= ${/typeOfRequest} !== 'Reclass' }">
+						<Select id="Copy_requestTypeSelect" selectedKey="{/requestType}" required="true" visible="{= ${/typeOfRequest} !== 'Reclass' }">
 							<items>
 								<core:Item id="Copy_IDGenItem" key="" text="Select..." />
 								<core:Item id="Copy_IDGenItem1" key="Commission" text="Commission Accruals" />
@@ -69,10 +60,7 @@
 						</Select>
 						<Label id="Copy_IDGenLabel7" text="Debit GL Type" required="true" class="redAsterisk" />
 
-						<Select id="Copy_glaccount"
-							selectedKey="{/glType}"
-							required="true"
-							change=".onGLTypeChangeHeader">
+						<Select id="Copy_glaccount" selectedKey="{/glType}" required="true" change=".onGLTypeChangeHeader">
 
 							<items>
 								<core:Item id="_IDGenItem14" key="" text="Select..." />
@@ -200,26 +188,14 @@
 										<!-- Description -->
 										<Input id="Copy_IDGenInput1" value="{description}" placeholder="Enter description" required="true" valueState="{descriptionState}" valueStateText="{descriptionStateText}" change=".onTableFieldChange" />
 										<!-- Currency -->
-										<Input id="Copy_currencyInput"
-											value="{currency}"
-											required="true"
-											valueState="{currencyState}"
-											valueStateText="{currencyStateText}"
-											editable="false"
-											enabled="true" />
+										<Input id="Copy_currencyInput" value="{currency}" required="true" valueState="{currencyState}" valueStateText="{currencyStateText}" editable="false" enabled="true" />
 										<!-- Exclude Tax -->
 										<Input id="Copy_IDGenInput2" value="{excludeTax}" placeholder="Amount" required="true" valueState="{excludeTaxState}" valueStateText="{excludeTaxStateText}" type="Number" change=".onExcludeTaxChange" />
 										<!-- GL Account -->
-<Input id="_IDGenInput11"
-    value="{glAccount}"
-    showSuggestion="true"
-    startSuggestion="0"
-    suggestionItems="{path: 'filteredGLAccounts'}">
+										<Input id="_IDGenInput11" value="{glAccount}" showSuggestion="true" startSuggestion="0" suggestionItems="{path: 'filteredGLAccounts'}">
 
-    <core:Item id="_IDGenItem10"
-        key="{GLAccount}"
-        text="{GLAccount}" />
-</Input>
+											<core:Item id="_IDGenItem10" key="{GLAccount}" text="{GLAccount}" />
+										</Input>
 										<!-- Credit/Debit -->
 										<Select id="Copy_IDGenSelect1" selectedKey="{creditDebit}" required="true" valueState="{creditDebitState}" valueStateText="{creditDebitStateText}" change=".onTableFieldChange">
 											<items>
@@ -268,74 +244,56 @@
 			</VBox>
 
 			<!-- Document Attachments Section -->
-<Panel id="Copy_dmsPanel" headerText="Supporting Documents" class="sapUiSmallMarginTop">
-    <content>
-        <VBox id="Copy_dmsVBox" class="sapUiSmallMargin">
-            
-            <Toolbar id="Copy_dmsToolbar">
-                <ToolbarSpacer id="Copy_dmsToolbarSpacer" />
-                <u:FileUploader
-                    id="Copy_dmsFileUploader"
-                    buttonText="Upload"
-                    buttonOnly="true"
-                    iconOnly="false"
-                    multiple="true"
-                    change=".onDMSFileSelected"
-                    style="Emphasized" />
-            </Toolbar>
+			<Panel id="Copy_dmsPanel" headerText="Supporting Documents" class="sapUiSmallMarginTop">
+				<content>
+					<VBox id="Copy_dmsVBox" class="sapUiSmallMargin">
 
-            <Table id="Copy_dmsDocumentsTable"
-                items="{/dmsDocuments}"
-                noDataText="No documents uploaded"
-                class="sapUiSmallMarginTop">
+						<Toolbar id="Copy_dmsToolbar">
+							<ToolbarSpacer id="Copy_dmsToolbarSpacer" />
+							<u:FileUploader id="Copy_dmsFileUploader" buttonText="Upload" buttonOnly="true" iconOnly="false" multiple="true" change=".onDMSFileSelected" style="Emphasized" />
+						</Toolbar>
 
-                <columns>
-                    <Column id="Copy_dmsColFileName" width="40%">
-                        <Text id="_IDGenText86" text="File Name" />
-                    </Column>
-                    <Column id="Copy_dmsColType" width="15%">
-                        <Text id="_IDGenText87" text="Type" />
-                    </Column>
-                    <Column id="Copy_dmsColSize" width="20%">
-                        <Text id="_IDGenText88" text="Size" />
-                    </Column>
-                    <Column id="Copy_dmsColDate" width="15%">
-                        <Text id="_IDGenText89" text="Uploaded On" />
-                    </Column>
-                    <Column id="Copy_dmsColActions" width="10%" hAlign="Center">
-                        <Text id="_IDGenText90" text="Actions" />
-                    </Column>
-                </columns>
+						<Table id="Copy_dmsDocumentsTable" items="{/dmsDocuments}" noDataText="No documents uploaded" class="sapUiSmallMarginTop">
 
-                <items>
-                    <ColumnListItem id="Copy_dmsDocItem">
-                        <cells>
-                            <Text id="_IDGenText91" text="{fileName}" />
-                            <Text id="_IDGenText92" text="{fileType}" />
-                            <Text id="_IDGenText93" text="{fileSize}" />
-                            <Text id="_IDGenText94" text="{uploadedOn}" />
-                            <HBox id="_IDGenHBox8" justifyContent="Center">
-                                <Button id="_IDGenButton"
-                                    icon="sap-icon://download"
-                                    type="Transparent"
-                                    tooltip="Download"
-                                    press=".onDMSDownload" />
-                                <Button id="_IDGenButton4"
-                                    icon="sap-icon://delete"
-                                    type="Transparent"
-                                    tooltip="Delete"
-                                    press=".onDMSDelete" />
-                            </HBox>
-                        </cells>
-                    </ColumnListItem>
-                </items>
+							<columns>
+								<Column id="Copy_dmsColFileName" width="40%">
+									<Text id="_IDGenText86" text="File Name" />
+								</Column>
+								<Column id="Copy_dmsColType" width="15%">
+									<Text id="_IDGenText87" text="Type" />
+								</Column>
+								<Column id="Copy_dmsColSize" width="20%">
+									<Text id="_IDGenText88" text="Size" />
+								</Column>
+								<Column id="Copy_dmsColDate" width="15%">
+									<Text id="_IDGenText89" text="Uploaded On" />
+								</Column>
+								<Column id="Copy_dmsColActions" width="10%" hAlign="Center">
+									<Text id="_IDGenText90" text="Actions" />
+								</Column>
+							</columns>
 
-            </Table>
-        </VBox>
-    </content>
-</Panel>
+							<items>
+								<ColumnListItem id="Copy_dmsDocItem">
+									<cells>
+										<Text id="_IDGenText91" text="{fileName}" />
+										<Text id="_IDGenText92" text="{fileType}" />
+										<Text id="_IDGenText93" text="{fileSize}" />
+										<Text id="_IDGenText94" text="{uploadedOn}" />
+										<HBox id="_IDGenHBox8" justifyContent="Center">
+											<Button id="_IDGenButton" icon="sap-icon://download" type="Transparent" tooltip="Download" press=".onDMSDownload" />
+											<Button id="_IDGenButton4" icon="sap-icon://delete" type="Transparent" tooltip="Delete" press=".onDMSDelete" />
+										</HBox>
+									</cells>
+								</ColumnListItem>
+							</items>
+
+						</Table>
+					</VBox>
+				</content>
+			</Panel>
 		</content>
-		
+
 		<!-- Fixed Footer with Action Buttons -->
 		<footer>
 			<Toolbar id="Copy_footerToolbar">

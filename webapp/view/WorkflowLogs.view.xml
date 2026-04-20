@@ -1,122 +1,64 @@
-<mvc:View
-    controllerName="accrual.controller.WorkflowLogs"
+<mvc:View controllerName="accrual.controller.WorkflowLogs"
     xmlns="sap.m"
     xmlns:mvc="sap.ui.core.mvc"
     xmlns:core="sap.ui.core"
     xmlns:l="sap.ui.layout">
 
-    <Page id="workflowLogPage"
-          showHeader="true"
-          class="sapUiContentPadding"
-          busy="{viewModel>/busy}"
-          busyIndicatorDelay="0">
+    <Page id="workflowLogPage" showHeader="true" class="sapUiContentPadding" busy="{viewModel>/busy}" busyIndicatorDelay="0">
 
         <customHeader>
             <Toolbar id="logsToolbar">
-                <Button id="backButton"
-                        icon="sap-icon://nav-back"
-                        press=".onNavBack"
-                        type="Transparent"
-                        class="sapUiLargeMarginEnd largeBackButton"/>
+                <Button id="backButton" icon="sap-icon://nav-back" press=".onNavBack" type="Transparent" class="sapUiLargeMarginEnd largeBackButton"/>
                 <Title id="pageTitle" text="Workflow Logs" level="H1"/>
                 <ToolbarSpacer id="toolbarSpacer1"/>
-                <Button id="refreshButton"
-                        icon="sap-icon://refresh"
-                        press=".onRefresh"
-                        type="Transparent"/>
+                <Button id="refreshButton" icon="sap-icon://refresh" press=".onRefresh" type="Transparent"/>
             </Toolbar>
         </customHeader>
 
         <content>
-            <MessageStrip
-                id="errorMessageStrip"
-                text="{viewModel>/errorMessage}"
-                type="Error"
-                showIcon="true"
-                visible="{viewModel>/hasError}"
-                class="sapUiMediumMarginBottom"/>
+            <MessageStrip id="errorMessageStrip" text="{viewModel>/errorMessage}" type="Error" showIcon="true" visible="{viewModel>/hasError}" class="sapUiMediumMarginBottom"/>
 
-            <List id="workflowLogList"
-                  items="{
+            <List id="workflowLogList" items="{
                       path: 'viewModel>/logs',
                       sorter: {
                           path: 'Logdate',
                           descending: true
                       }
-                  }"
-                  noDataText="No workflow logs available"
-                  growing="true"
-                  growingScrollToLoad="true"
-                  showSeparators="Inner"
-                  mode="None"
-                  class="workflowLogList">
+                  }" noDataText="No workflow logs available" growing="true" growingScrollToLoad="true" showSeparators="Inner" mode="None" class="workflowLogList">
 
                 <CustomListItem id="logListItem" type="Inactive" class="sapMLIBTypeInactive">
-                    <HBox id="logItemBox"
-                          alignItems="Start"
-                          class="sapUiSmallMargin sapUiTinyMarginBottom">
+                    <HBox id="logItemBox" alignItems="Start" class="sapUiSmallMargin sapUiTinyMarginBottom">
 
-                        <core:Icon id="statusIcon"
-                                   src="{
+                        <core:Icon id="statusIcon" src="{
                                        path: 'viewModel>Action',
                                        formatter: '.getActionIcon'
-                                   }"
-                                   size="1.5rem"
-                                   color="{
+                                   }" size="1.5rem" color="{
                                        path: 'viewModel>Action',
                                        formatter: '.getActionColor'
-                                   }"
-                                   class="sapUiMediumMarginEnd"/>
+                                   }" class="sapUiMediumMarginEnd"/>
 
-                        <VBox id="contentBox"
-                              width="100%"
-                              class="sapUiTinyMarginTop">
+                        <VBox id="contentBox" width="100%" class="sapUiTinyMarginTop">
 
-                            <HBox id="headerBox"
-                                  justifyContent="SpaceBetween"
-                                  alignItems="Center"
-                                  class="sapUiTinyMarginBottom">
-                                <Title id="roleTitle"
-                                       text="{viewModel>Role}"
-                                       wrapping="true"
-                                       level="H5"/>
-                                <ObjectStatus id="actionStatus"
-                                              text="{viewModel>Action}"
-                                              state="{
+                            <HBox id="headerBox" justifyContent="SpaceBetween" alignItems="Center" class="sapUiTinyMarginBottom">
+                                <Title id="roleTitle" text="{viewModel>Role}" wrapping="true" level="H5"/>
+                                <ObjectStatus id="actionStatus" text="{viewModel>Action}" state="{
                                                   path: 'viewModel>Action',
                                                   formatter: '.getActionState'
                                               }"/>
                             </HBox>
 
-                            <HBox id="metadataBox"
-                                  alignItems="Center"
-                                  class="sapUiTinyMarginBottom">
-                                <core:Icon id="personIcon"
-                                           src="sap-icon://person-placeholder"
-                                           size="1rem"
-                                           class="sapUiTinyMarginEnd"/>
-                                <Text id="nameText"
-                                      text="{viewModel>Name}"
-                                      class="sapUiTinyMarginEnd"/>
-                                <Text id="emailText"
-                                      text="({viewModel>Email})"
-                                      class="sapUiTinyMarginEnd"/>
-                                <core:Icon id="timeIcon"
-                                           src="sap-icon://time-entry-request"
-                                           size="1rem"
-                                           class="sapUiTinyMarginEnd"/>
-                                <Text id="dateText"
-                                      text="{
+                            <HBox id="metadataBox" alignItems="Center" class="sapUiTinyMarginBottom">
+                                <core:Icon id="personIcon" src="sap-icon://person-placeholder" size="1rem" class="sapUiTinyMarginEnd"/>
+                                <Text id="nameText" text="{viewModel>Name}" class="sapUiTinyMarginEnd"/>
+                                <Text id="emailText" text="({viewModel>Email})" class="sapUiTinyMarginEnd"/>
+                                <core:Icon id="timeIcon" src="sap-icon://time-entry-request" size="1rem" class="sapUiTinyMarginEnd"/>
+                                <Text id="dateText" text="{
                                           path: 'viewModel>Logdate',
                                           formatter: '.formatDate'
                                       }"/>
                             </HBox>
 
-                            <Text id="commentsText"
-                                  text="{viewModel>Comments}"
-                                  class="sapUiTinyMarginTop"
-                                  visible="{= !!${viewModel>Comments}}"
-                                  maxLines="3"/>
+                            <Text id="commentsText" text="{viewModel>Comments}" class="sapUiTinyMarginTop" visible="{= !!${viewModel>Comments}}" maxLines="3"/>
                         </VBox>
                     </HBox>
                 </CustomListItem>

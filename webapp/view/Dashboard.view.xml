@@ -1,12 +1,11 @@
-<mvc:View
-  controllerName="accrual.controller.Dashboard"
+<mvc:View controllerName="accrual.controller.Dashboard"
   xmlns:mvc="sap.ui.core.mvc"
   xmlns="sap.m"
   xmlns:core="sap.ui.core"
   xmlns:l="sap.ui.layout">
 
- <Page id="dashboardPage" title="Dashboard" showHeader="false">
-    
+  <Page id="dashboardPage" title="Dashboard" showHeader="false">
+
     <!-- Custom Header with Refresh Button -->
     <customHeader>
       <Bar id="_IDGenBar1">
@@ -15,90 +14,47 @@
         </contentLeft>
         <contentRight>
           <!-- Refresh Button -->
-          <Button id="refreshButton1"
-            icon="sap-icon://refresh"
-            tooltip="Refresh Data"
-            type="Transparent"
-            press=".onRefreshPress"/>
+          <Button id="refreshButton1" icon="sap-icon://refresh" tooltip="Refresh Data" type="Transparent" press=".onRefreshPress"/>
 
         </contentRight>
       </Bar>
     </customHeader>
 
-    
+
     <content>
       <VBox id="dashboardVBox" class="sapUiSmallMargin">
-        
+
         <!-- KPI CARDS -->
         <l:HorizontalLayout id="kpiLayout" class="sapUiMediumMarginBottom">
           <l:content>
 
-              <GenericTile id="TotalRequestTile" 
-              header="Total Request"
-              subheader=""
-              class="sapUiTinyMarginEnd"
-              press=".onKPIPress"
-              state="Loaded">
+            <GenericTile id="TotalRequestTile" header="Total Request" subheader="" class="sapUiTinyMarginEnd" press=".onKPIPress" state="Loaded">
               <TileContent id="_IDGenTileContent5">
-                <NumericContent id="totalrequestNum" 
-                  value="{/totalrequest}"
-                  scale=""
-                  valueColor="Neutral"/>
+                <NumericContent id="totalrequestNum" value="{/totalrequest}" scale="" valueColor="Neutral"/>
               </TileContent>
             </GenericTile>
-            
-            <GenericTile id="draftTile" 
-              header="Draft"
-              subheader=""
-              class="sapUiTinyMarginEnd"
-              press=".onKPIPress"
-              state="Loaded">
+
+            <GenericTile id="draftTile" header="Draft" subheader="" class="sapUiTinyMarginEnd" press=".onKPIPress" state="Loaded">
               <TileContent id="_IDGenTileContent1">
-                <NumericContent id="draftNum" 
-                  value="{/draft}"
-                  scale=""
-                  valueColor="Neutral"/>
+                <NumericContent id="draftNum" value="{/draft}" scale="" valueColor="Neutral"/>
               </TileContent>
             </GenericTile>
 
-            <GenericTile id="pendingApprovalTile" 
-              header="Pending Approval"
-              subheader=""
-              class="sapUiTinyMarginEnd"
-              press=".onKPIPress"
-              state="Loaded">
+            <GenericTile id="pendingApprovalTile" header="Pending Approval" subheader="" class="sapUiTinyMarginEnd" press=".onKPIPress" state="Loaded">
               <TileContent id="_IDGenTileContent2">
-                <NumericContent id="pendingApprovalNum" 
-                  value="{/pendingApproval}"
-                  scale=""
-                  valueColor="Critical"/>
+                <NumericContent id="pendingApprovalNum" value="{/pendingApproval}" scale="" valueColor="Critical"/>
               </TileContent>
             </GenericTile>
 
-            <GenericTile id="rejectedTile" 
-              header="Rejected"
-              subheader=""
-              class="sapUiTinyMarginEnd"
-              press=".onKPIPress"
-              state="Loaded">
+            <GenericTile id="rejectedTile" header="Rejected" subheader="" class="sapUiTinyMarginEnd" press=".onKPIPress" state="Loaded">
               <TileContent id="_IDGenTileContent3">
-                <NumericContent id="rejectedNum" 
-                  value="{/rejected}"
-                  scale=""
-                  valueColor="Error"/>
+                <NumericContent id="rejectedNum" value="{/rejected}" scale="" valueColor="Error"/>
               </TileContent>
             </GenericTile>
 
-            <GenericTile id="completedTile" 
-              header="Completed"
-              subheader=""
-              press=".onKPIPress"
-              state="Loaded">
+            <GenericTile id="completedTile" header="Completed" subheader="" press=".onKPIPress" state="Loaded">
               <TileContent id="_IDGenTileContent4">
-                <NumericContent id="completedNum" 
-                  value="{/completed}"
-                  scale=""
-                  valueColor="Good"/>
+                <NumericContent id="completedNum" value="{/completed}" scale="" valueColor="Good"/>
               </TileContent>
             </GenericTile>
 
@@ -107,43 +63,25 @@
 
         <!-- TABLE SECTION -->
         <VBox id="tableSection" class="sapUiSmallMarginTop">
-          
-<Toolbar id="tableHeaderToolbar">
-  <Title id="tableTitle" text="Accrual Requests" level="H2"/>
-  <ToolbarSpacer id="toolbarSpacer"/>
-  
-  <!-- Search Field with Icons -->
-  <HBox id="searchBox" alignItems="Center">
-    <SearchField id="searchField" 
-      width="20rem"
-      placeholder="Search..."
-      search=".onSearch"
-      liveChange=".onSearch"
-      class="sapUiTinyMarginEnd"/>
-    
-                            <Button
-                                id="btnClearFilters"
-                                icon="sap-icon://clear-filter"
-                                press=".onClearFilters"
-                                tooltip="Clear Filters"
-                                class="sapUiTinyMarginBegin"
-                            />
-    <Button id="refreshButton5"
-      icon="sap-icon://refresh"
-      type="Transparent"
-      tooltip="Refresh Data"
-      press=".onRefreshPress"
-                            />
-  </HBox>
-</Toolbar>
+
+          <Toolbar id="tableHeaderToolbar">
+            <Title id="tableTitle" text="Accrual Requests" level="H2"/>
+            <ToolbarSpacer id="toolbarSpacer"/>
+
+            <!-- Search Field with Icons -->
+            <HBox id="searchBox" alignItems="Center">
+              <SearchField id="searchField" width="20rem" placeholder="Search..." search=".onSearch" liveChange=".onSearch" class="sapUiTinyMarginEnd"/>
+
+              <Button id="btnClearFilters" icon="sap-icon://clear-filter" press=".onClearFilters" tooltip="Clear Filters" class="sapUiTinyMarginBegin" />
+              <Button id="refreshButton5" icon="sap-icon://refresh" type="Transparent" tooltip="Refresh Data" press=".onRefreshPress" />
+            </HBox>
+          </Toolbar>
 
           <!-- Filter Toolbar -->
           <OverflowToolbar id="filterToolbar" class="sapUiTinyMarginTop" visible="false">
             <Label id="filterLabel" text="Filters:" design="Bold"/>
-            
-            <Select id="statusFilter"
-              width="12rem"
-              change=".onStatusFilterChange">
+
+            <Select id="statusFilter" width="12rem" change=".onStatusFilterChange">
               <items>
                 <core:Item id="statusAll" key="All" text="All Status"/>
                 <core:Item id="statusPending" key="Pending Approval" text="Pending Approval"/>
@@ -153,9 +91,7 @@
               </items>
             </Select>
 
-            <Select id="requestTypeFilter"
-              width="12rem"
-              change=".onRequestTypeFilterChange">
+            <Select id="requestTypeFilter" width="12rem" change=".onRequestTypeFilterChange">
               <items>
                 <core:Item id="typeAll" key="All" text="All Request Types"/>
                 <core:Item id="typeAccrual" key="Accrual" text="Accrual"/>
@@ -163,9 +99,7 @@
               </items>
             </Select>
 
-            <Select id="partyTypeFilter"
-              width="12rem"
-              change=".onPartyTypeFilterChange">
+            <Select id="partyTypeFilter" width="12rem" change=".onPartyTypeFilterChange">
               <items>
                 <core:Item id="partyAll" key="All" text="All Party Types"/>
                 <core:Item id="partySupplier" key="Supplier" text="Supplier"/>
@@ -175,78 +109,67 @@
           </OverflowToolbar>
 
           <!-- Scroll Container -->
-<ScrollContainer
-    id="tableScrollContainer"
-    horizontal="true"
-    vertical="false"
-    width="100%"
-    class="sapUiTinyMarginTop">
+          <ScrollContainer id="tableScrollContainer" horizontal="true" vertical="false" width="100%" class="sapUiTinyMarginTop">
 
-    <Table
-        id="requestsTable"
-        items="{/requests}"
-        growing="false"
-        mode="None"
-        fixedLayout="false"
-        width="1900px">
+            <Table id="requestsTable" items="{/requests}" growing="false" mode="None" fixedLayout="false" width="1900px">
 
-        <columns>
-            <Column id="_IDGenColumn32" width="140px">
-                <Text id="_IDGenText64" text="Request No"/>
-            </Column>
+              <columns>
+                <Column id="_IDGenColumn32" width="140px">
+                  <Text id="_IDGenText64" text="Request No"/>
+                </Column>
 
-            <Column id="_IDGenColumn33" width="200px">
-                <Text id="_IDGenText65" text="Affiliate"/>
-            </Column>
+                <Column id="_IDGenColumn33" width="200px">
+                  <Text id="_IDGenText65" text="Affiliate"/>
+                </Column>
 
-            <Column id="_IDGenColumn34" width="180px">
-                <Text id="_IDGenText66" text="Accrual Name"/>
-            </Column>
+                <Column id="_IDGenColumn34" width="180px">
+                  <Text id="_IDGenText66" text="Accrual Name"/>
+                </Column>
 
-            <Column id="_IDGenColumn35" width="140px" hAlign="Center">
-                <Text id="_IDGenText67" text="Company code"/>
-            </Column>
+                <Column id="_IDGenColumn35" width="140px" hAlign="Center">
+                  <Text id="_IDGenText67" text="Company code"/>
+                </Column>
 
-            <Column id="_IDGenColumn36" width="220px">
-                <Text id="_IDGenText68" text="Requested by"/>
-            </Column>
+                <Column id="_IDGenColumn36" width="220px">
+                  <Text id="_IDGenText68" text="Requested by"/>
+                </Column>
 
-            <Column id="_IDGenColumn37" width="150px">
-                <Text id="_IDGenText69" text="Approved by"/>
-            </Column>
+                <Column id="_IDGenColumn37" width="150px">
+                  <Text id="_IDGenText69" text="Approved by"/>
+                </Column>
 
-            <Column id="_IDGenColumn38" width="140px">
-                <Text id="_IDGenText70" text="Type of Accrual"/>
-            </Column>
+                <Column id="_IDGenColumn38" width="140px">
+                  <Text id="_IDGenText70" text="Type of Accrual"/>
+                </Column>
 
-            <Column id="_IDGenColumn39" width="130px">
-                <Text id="_IDGenText71" text="Type of Party"/>
-            </Column>
+                <Column id="_IDGenColumn39" width="130px">
+                  <Text id="_IDGenText71" text="Type of Party"/>
+                </Column>
 
-            <Column id="_IDGenColumn40" width="150px" hAlign="Center">
-                <Text id="_IDGenText72" text="Status"/>
-            </Column>
+                <Column id="_IDGenColumn40" width="150px" hAlign="Center">
+                  <Text id="_IDGenText72" text="Status"/>
+                </Column>
 
-            <Column id="_IDGenColumn44" width="140px">
-                <Text id="_IDGenText76new" text="Document No"/>
-            </Column>
+                <Column id="_IDGenColumn44" width="140px">
+                  <Text id="_IDGenText76new" text="Document No"/>
+                </Column>
 
-            <Column id="_IDGenColumn41" width="130px" hAlign="Center">
-                <Text id="_IDGenText73" text="Date Created"/>
-            </Column>
+                <Column id="_IDGenColumn41" width="130px" hAlign="Center">
+                  <Text id="_IDGenText73" text="Date Created"/>
+                </Column>
 
-            <Column id="_IDGenColumn42" width="130px" hAlign="Center">
-                <Text id="_IDGenText74" text="Last Updated"/>
-            </Column>
+                <Column id="_IDGenColumn42" width="130px" hAlign="Center">
+                  <Text id="_IDGenText74" text="Last Updated"/>
+                </Column>
 
-            <Column id="_IDGenColumn43" width="100px" hAlign="Center">
-                <Text id="_IDGenText75" text="Actions"/>
-            </Column>
-        </columns>
+                <Column id="_IDGenColumn43" width="100px" hAlign="Center">
+                  <Text id="_IDGenText75" text="Actions"/>
+                </Column>
+              </columns>
 
-        <items>
-            <ColumnListItem id="_IDGenColumnListItem2" type="Inactive">
-                <cells>
+              <items>
+                <ColumnListItem id="_IDGenColumnListItem2" type="Inactive">
+                  <cells>
                     <Text id="_IDGenText76" text="{requestNo}"/>
                     <Text id="_IDGenText77" text="{affiliate}" wrapping="false"/>
                     <Text id="_IDGenText78" text="{nameAccrual}" wrapping="false"/>
@@ -256,19 +179,16 @@
                     <Text id="_IDGenText82" text="{requestType}"/>
                     <Text id="_IDGenText83" text="{typeOfParty}"/>
                     <ObjectStatus id="_IDGenObjectStatus" text="{status}" state="{statusState}"/>
-                    <Text id="_IDGenText76b" text="{documentNo}"/> 
+                    <Text id="_IDGenText76b" text="{documentNo}"/>
                     <Text id="_IDGenText84" text="{dateCreated}"/>
                     <Text id="_IDGenText85" text="{lastUpdated}"/>
-                    <Button id="_IDGenButton8"
-                        icon="sap-icon://overflow"
-                        type="Transparent"
-                        press=".onActionsPress"/>
-                </cells>
-            </ColumnListItem>
-        </items>
+                    <Button id="_IDGenButton8" icon="sap-icon://overflow" type="Transparent" press=".onActionsPress"/>
+                  </cells>
+                </ColumnListItem>
+              </items>
 
-    </Table>
-</ScrollContainer>
+            </Table>
+          </ScrollContainer>
         </VBox>
 
       </VBox>

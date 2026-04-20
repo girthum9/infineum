@@ -43,20 +43,20 @@ sap.ui.define([
 
             // ── 1. Determine primary data source ──────────────────────────────────────
             //   Priority: form_accrualSubmissionForm_2  →  startEvent.accrual
-            var oForm2  = oApiData.form_accrualSubmissionForm_2 || null;
-            var oStart  = (oApiData.startEvent && oApiData.startEvent.accrual) || {};
+            var oForm2 = oApiData.form_accrualSubmissionForm_2 || null;
+            var oStart = (oApiData.startEvent && oApiData.startEvent.accrual) || {};
 
             // Use form_accrualSubmissionForm_2 when available, else fall back to startEvent
-            var oSrc    = oForm2 || oStart;
+            var oSrc = oForm2 || oStart;
 
             // Legacy AccrualSet action results (kept as last-resort fallbacks for header fields)
-            var oAct1   = (oApiData.action_post_postSapOpuOdataSapZBTPHYPERAUTOMATIONSERVICESSrvAccuralsSet_1  &&
-                           oApiData.action_post_postSapOpuOdataSapZBTPHYPERAUTOMATIONSERVICESSrvAccuralsSet_1.result  &&
-                           oApiData.action_post_postSapOpuOdataSapZBTPHYPERAUTOMATIONSERVICESSrvAccuralsSet_1.result.d) || {};
+            var oAct1 = (oApiData.action_post_postSapOpuOdataSapZBTPHYPERAUTOMATIONSERVICESSrvAccuralsSet_1 &&
+                oApiData.action_post_postSapOpuOdataSapZBTPHYPERAUTOMATIONSERVICESSrvAccuralsSet_1.result &&
+                oApiData.action_post_postSapOpuOdataSapZBTPHYPERAUTOMATIONSERVICESSrvAccuralsSet_1.result.d) || {};
 
-            var oAct2   = (oApiData.action_post_postSapOpuOdataSapZBTPHYPERAUTOMATIONSERVICESSrvAccuralsSet_2  &&
-                           oApiData.action_post_postSapOpuOdataSapZBTPHYPERAUTOMATIONSERVICESSrvAccuralsSet_2.result  &&
-                           oApiData.action_post_postSapOpuOdataSapZBTPHYPERAUTOMATIONSERVICESSrvAccuralsSet_2.result.d) || {};
+            var oAct2 = (oApiData.action_post_postSapOpuOdataSapZBTPHYPERAUTOMATIONSERVICESSrvAccuralsSet_2 &&
+                oApiData.action_post_postSapOpuOdataSapZBTPHYPERAUTOMATIONSERVICESSrvAccuralsSet_2.result &&
+                oApiData.action_post_postSapOpuOdataSapZBTPHYPERAUTOMATIONSERVICESSrvAccuralsSet_2.result.d) || {};
 
             // ── 2. Helper: resolve a value across multiple objects / key variants ──────
             var pick = function () {
@@ -80,54 +80,54 @@ sap.ui.define([
             Object.keys(oApiData).forEach(function (key) {
                 if (/^action_post_postSapOpuOdataSapZBTPHYPERAUTOMATIONSERVICESSrvAccuralsSet_\d+$/.test(key)) {
                     var d = (oApiData[key].result && oApiData[key].result.d) || {};
-                    if (d.Status) { sRawStatus  = d.Status; }
-                    if (d.Requestno)  { sRequestNo  = d.Requestno; }
+                    if (d.Status) { sRawStatus = d.Status; }
+                    if (d.Requestno) { sRequestNo = d.Requestno; }
                     if (d.Documentno) { sDocumentNo = d.Documentno; }
                 }
             });
 
             // ── 4. Build header data ──────────────────────────────────────────────────
             var oData = {
-                instantId  : sInstanceId,
+                instantId: sInstanceId,
 
-                requestNo  : sRequestNo  || pick(oAct2, "Requestno",  oAct1, "Requestno"),
-                documentNo : sDocumentNo || pick(oAct2, "Documentno", oAct1, "Documentno"),
+                requestNo: sRequestNo || pick(oAct2, "Requestno", oAct1, "Requestno"),
+                documentNo: sDocumentNo || pick(oAct2, "Documentno", oAct1, "Documentno"),
 
-                affiliate  : pick(oSrc,  "affiliate",       oSrc,  "Affiliate",
-                                  oAct2, "Companyname",     oAct1, "Companyname"),
+                affiliate: pick(oSrc, "affiliate", oSrc, "Affiliate",
+                    oAct2, "Companyname", oAct1, "Companyname"),
 
-                nameAccrual: pick(oSrc,  "nameYourAccrual", oSrc,  "NameYourAccrual",
-                                  oAct2, "Accuralname",     oAct1, "Accuralname"),
+                nameAccrual: pick(oSrc, "nameYourAccrual", oSrc, "NameYourAccrual",
+                    oAct2, "Accuralname", oAct1, "Accuralname"),
 
-                cutoffDate : pick(oSrc,  "accrualCutOffDate", oSrc, "AccrualCutOffDate",
-                                  oSrc,  "accrualCutoffDateYyyymmdd"),
+                cutoffDate: pick(oSrc, "accrualCutOffDate", oSrc, "AccrualCutOffDate",
+                    oSrc, "accrualCutoffDateYyyymmdd"),
 
-                companyCode: pick(oSrc,  "companyCode",     oSrc,  "CompanyCode",
-                                  oAct2, "Companycode",     oAct1, "Companycode"),
+                companyCode: pick(oSrc, "companyCode", oSrc, "CompanyCode",
+                    oAct2, "Companycode", oAct1, "Companycode"),
 
-                requestedBy: pick(oSrc,  "requestedBy",     oSrc,  "RequestedBy",
-                                  oAct2, "Requestedby",     oAct1, "Requestedby"),
+                requestedBy: pick(oSrc, "requestedBy", oSrc, "RequestedBy",
+                    oAct2, "Requestedby", oAct1, "Requestedby"),
 
-                approvedBy : pick(oSrc,  "approvedBy",      oSrc,  "ApprovedBy",
-                                  oAct2, "Approvedby",      oAct1, "Approvedby"),
+                approvedBy: pick(oSrc, "approvedBy", oSrc, "ApprovedBy",
+                    oAct2, "Approvedby", oAct1, "Approvedby"),
 
-                requestType: pick(oSrc,  "typeOfRequest",   oSrc,  "TypeofRequest",
-                                  oAct2, "Requesttype",     oAct1, "Requesttype"),
+                requestType: pick(oSrc, "typeOfRequest", oSrc, "TypeofRequest",
+                    oAct2, "Requesttype", oAct1, "Requesttype"),
 
-                typeOfParty: pick(oSrc,  "typeOfParty",     oSrc,  "Partytype"),
+                typeOfParty: pick(oSrc, "typeOfParty", oSrc, "Partytype"),
                 debitGLType: pick(oSrc, "debitGLType", "DebitGLType"),
 
-                status     : this._getStatusText(
-                                 sRawStatus ||
-                                 pick(oSrc, "status", oSrc, "Status")
-                             ),
+                status: this._getStatusText(
+                    sRawStatus ||
+                    pick(oSrc, "status", oSrc, "Status")
+                ),
                 statusState: this._getStatusState(
-                                 sRawStatus ||
-                                 pick(oSrc, "status", oSrc, "Status")
-                             ),
+                    sRawStatus ||
+                    pick(oSrc, "status", oSrc, "Status")
+                ),
 
                 approverComments: pick(oAct2, "Approvercomments", oAct1, "Approvercomments",
-                                        oSrc,  "approverLevel1Comments"),
+                    oSrc, "approverLevel1Comments"),
 
                 dateCreated: this._formatToday(),
                 lastUpdated: this._formatToday(),
@@ -150,8 +150,8 @@ sap.ui.define([
             //           → startEvent.accrual.Supporting_Documents
             //           → custom.supportingDocuments
             var sSupportingDocs =
-                (oForm2  && oForm2.supportingDocuments)              ||
-                (oStart  && oStart.Supporting_Documents)             ||
+                (oForm2 && oForm2.supportingDocuments) ||
+                (oStart && oStart.Supporting_Documents) ||
                 (oApiData.custom && oApiData.custom.supportingDocuments) ||
                 "";
 
@@ -168,71 +168,71 @@ sap.ui.define([
 
         // ─── DMS (READ-ONLY) ──────────────────────────────────────────────────────────
 
-_loadDMSAttachments: function (sSupportingDocsRef, oModel) {
-    WorkflowAPI.fetchDMSFilesFromFolder(sSupportingDocsRef)
-        .then(function (oRawResponse) {
+        _loadDMSAttachments: function (sSupportingDocsRef, oModel) {
+            WorkflowAPI.fetchDMSFilesFromFolder(sSupportingDocsRef)
+                .then(function (oRawResponse) {
 
-            // Support both pre-mapped arrays AND raw CMIS { objects: [...] } responses
-            var aObjects = Array.isArray(oRawResponse)
-                ? oRawResponse
-                : (oRawResponse && oRawResponse.objects) || [];
+                    // Support both pre-mapped arrays AND raw CMIS { objects: [...] } responses
+                    var aObjects = Array.isArray(oRawResponse)
+                        ? oRawResponse
+                        : (oRawResponse && oRawResponse.objects) || [];
 
-            if (!aObjects.length) { return; }
+                    if (!aObjects.length) { return; }
 
-            var aMapped = aObjects.map(function (oEntry) {
-                // Handle pre-mapped flat object  (already processed by WorkflowAPI)
-                if (oEntry.fileName || oEntry.objectId) { return oEntry; }
+                    var aMapped = aObjects.map(function (oEntry) {
+                        // Handle pre-mapped flat object  (already processed by WorkflowAPI)
+                        if (oEntry.fileName || oEntry.objectId) { return oEntry; }
 
-                // Handle raw CMIS structure: { object: { properties: { ... } } }
-                var props = (oEntry.object && oEntry.object.properties) || {};
+                        // Handle raw CMIS structure: { object: { properties: { ... } } }
+                        var props = (oEntry.object && oEntry.object.properties) || {};
 
-                var getProp = function (key) {
-                    return (props[key] && props[key].value !== undefined)
-                        ? props[key].value
-                        : "";
-                };
+                        var getProp = function (key) {
+                            return (props[key] && props[key].value !== undefined)
+                                ? props[key].value
+                                : "";
+                        };
 
-                var rawName  = getProp("cmis:contentStreamFileName") || getProp("cmis:name");
-                var mimeType = getProp("cmis:contentStreamMimeType");
-                var sizeBytes = getProp("cmis:contentStreamLength");
-                var folderId = (getProp("sap:parentIds") || [])[0] || "";
+                        var rawName = getProp("cmis:contentStreamFileName") || getProp("cmis:name");
+                        var mimeType = getProp("cmis:contentStreamMimeType");
+                        var sizeBytes = getProp("cmis:contentStreamLength");
+                        var folderId = (getProp("sap:parentIds") || [])[0] || "";
 
-                // Derive a clean display name (strip timestamp prefix like "1776445920909_")
-                var displayName = rawName.replace(/^\d+_/, "");
+                        // Derive a clean display name (strip timestamp prefix like "1776445920909_")
+                        var displayName = rawName.replace(/^\d+_/, "");
 
-                // Convert bytes → KB string
-                var fileSizeKB = sizeBytes
-                    ? (Math.round(sizeBytes / 1024 * 10) / 10) + " KB"
-                    : "";
+                        // Convert bytes → KB string
+                        var fileSizeKB = sizeBytes
+                            ? (Math.round(sizeBytes / 1024 * 10) / 10) + " KB"
+                            : "";
 
-                // Format creation date from epoch ms
-                var creationEpoch = getProp("cmis:creationDate");
-                var uploadedOn = "";
-                if (creationEpoch) {
-                    var d = new Date(creationEpoch);
-                    uploadedOn = d.toLocaleDateString("en-GB"); // DD/MM/YYYY
-                }
+                        // Format creation date from epoch ms
+                        var creationEpoch = getProp("cmis:creationDate");
+                        var uploadedOn = "";
+                        if (creationEpoch) {
+                            var d = new Date(creationEpoch);
+                            uploadedOn = d.toLocaleDateString("en-GB"); // DD/MM/YYYY
+                        }
 
-                return {
-                    objectId  : getProp("cmis:objectId"),
-                    fileName  : displayName,
-                    fileType  : mimeType,
-                    fileSize  : fileSizeKB,
-                    uploadedOn: uploadedOn,
-                    folderId  : folderId
-                };
-            }).filter(function (doc) {
-                return !!doc.objectId; // drop any empty entries
-            });
+                        return {
+                            objectId: getProp("cmis:objectId"),
+                            fileName: displayName,
+                            fileType: mimeType,
+                            fileSize: fileSizeKB,
+                            uploadedOn: uploadedOn,
+                            folderId: folderId
+                        };
+                    }).filter(function (doc) {
+                        return !!doc.objectId; // drop any empty entries
+                    });
 
-            oModel.setProperty("/dmsDocuments", aMapped);
-            oModel.updateBindings(true);
-        })
-        .catch(function (error) {
-            console.error("Error loading supporting documents:", error);
-            MessageToast.show("Could not load supporting documents");
-        });
-},
+                    oModel.setProperty("/dmsDocuments", aMapped);
+                    oModel.updateBindings(true);
+                })
+                .catch(function (error) {
+                    console.error("Error loading supporting documents:", error);
+                    MessageToast.show("Could not load supporting documents");
+                });
+        },
 
         // ─── DOWNLOAD ONLY (no upload / delete on ViewDetails) ───────────────────────
 
@@ -242,8 +242,8 @@ _loadDMSAttachments: function (sSupportingDocsRef, oModel) {
             WorkflowAPI.downloadDMSFile(oDoc.objectId)
                 .then(function (blob) {
                     var url = URL.createObjectURL(blob);
-                    var a   = document.createElement("a");
-                    a.href     = url;
+                    var a = document.createElement("a");
+                    a.href = url;
                     a.download = oDoc.fileName;
                     a.click();
                     URL.revokeObjectURL(url);
@@ -262,23 +262,23 @@ _loadDMSAttachments: function (sSupportingDocsRef, oModel) {
                 // form_accrualSubmissionForm_2 uses camelCase keys
                 // startEvent.accrual.Accrual_Table uses PascalCase keys
                 return {
-                    supplier      : row.supplierCustomer        || row.SupplierCustomer        || "",
-                    description   : row.description             || row.Description             || "",
-                    currency      : row.currency                || row.Currency                || "",
-                    excludeTax    : row.excludeTax              || row.ExcludeTax              || "",
-                    glAccount     : row.gLAccountCode           || row.GLAccountCode           || "",
-                    creditDebit   : row.creditDebitIndicator    || row.CreditDebitIndicator    || "",
-                    poNumber      : row.purchaseOrderNumber     || row.PurchaseOrderNumber     || "",
-                    poLineItem    : row.purchaseOrderLineItem   || row.PurchaseOrderLineItem   || "",
-                    costCentre    : row.costCentre              || row.CostCentre              || "",
-                    internalOrder : row.internalOrder           || row.InternalOrder           || "",
-                    wbs           : row.wBS                     || row.WBS                     || "",
-                    tradingPartner: row.tradingPartner          || row.TradingPartner          || "",
-                    salesOrder    : row.salesOrderNumber        || row.SalesOrderNumber        || "",
-                    salesOrderItem: row.salesOrderItemNumber    || row.SalesOrderItemNumber    || "",
-                    segmentProduct: row.segmentProduct          || row.SegmentProduct          || "",
-                    segmentShip   : row.segmentShiptoParty      || row.SegmentShiptoParty      || "",
-                    segmentSold   : row.segmentSoldtoParty      || row.SegmentSoldtoParty      || ""
+                    supplier: row.supplierCustomer || row.SupplierCustomer || "",
+                    description: row.description || row.Description || "",
+                    currency: row.currency || row.Currency || "",
+                    excludeTax: row.excludeTax || row.ExcludeTax || "",
+                    glAccount: row.gLAccountCode || row.GLAccountCode || "",
+                    creditDebit: row.creditDebitIndicator || row.CreditDebitIndicator || "",
+                    poNumber: row.purchaseOrderNumber || row.PurchaseOrderNumber || "",
+                    poLineItem: row.purchaseOrderLineItem || row.PurchaseOrderLineItem || "",
+                    costCentre: row.costCentre || row.CostCentre || "",
+                    internalOrder: row.internalOrder || row.InternalOrder || "",
+                    wbs: row.wBS || row.WBS || "",
+                    tradingPartner: row.tradingPartner || row.TradingPartner || "",
+                    salesOrder: row.salesOrderNumber || row.SalesOrderNumber || "",
+                    salesOrderItem: row.salesOrderItemNumber || row.SalesOrderItemNumber || "",
+                    segmentProduct: row.segmentProduct || row.SegmentProduct || "",
+                    segmentShip: row.segmentShiptoParty || row.SegmentShiptoParty || "",
+                    segmentSold: row.segmentSoldtoParty || row.SegmentSoldtoParty || ""
                 };
             });
         },
@@ -287,22 +287,22 @@ _loadDMSAttachments: function (sSupportingDocsRef, oModel) {
 
         _getStatusText: function (s) {
             var map = {
-                "Draft"    : "Draft",
-                "Pending"  : "Pending Approval",
+                "Draft": "Draft",
+                "Pending": "Pending Approval",
                 "Completed": "Completed",
-                "1"        : "Submitted",
-                "2"        : "Draft"
+                "1": "Submitted",
+                "2": "Draft"
             };
             return map[s] || s || "Unknown";
         },
 
         _getStatusState: function (s) {
             var map = {
-                "Draft"    : "Warning",
-                "Pending"  : "Warning",
+                "Draft": "Warning",
+                "Pending": "Warning",
                 "Completed": "Success",
-                "1"        : "Information",
-                "2"        : "Warning"
+                "1": "Information",
+                "2": "Warning"
             };
             return map[s] || "None";
         },
@@ -310,7 +310,7 @@ _loadDMSAttachments: function (sSupportingDocsRef, oModel) {
         // ─── MISC ─────────────────────────────────────────────────────────────────────
 
         _formatToday: function () {
-            var d  = new Date();
+            var d = new Date();
             var dd = String(d.getDate()).padStart(2, "0");
             var mm = String(d.getMonth() + 1).padStart(2, "0");
             var yyyy = d.getFullYear();
