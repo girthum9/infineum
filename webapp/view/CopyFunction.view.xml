@@ -198,15 +198,15 @@
 											</items>
 										</Select>
 										<!-- Cost Centre - Dropdown -->
-										<ComboBox id="Copy_costCentreSelect" selectedKey="{costCentre}" change=".onTableFieldChange" loadItems=".onCostCentreOpen" placeholder="Select Cost Centre..." width="100%" items="{ path: '/costCentres', length: 10000 }">
+										<ComboBox id="Copy_costCentreSelect" selectedKey="{costCentre}" change=".onTableFieldChange" enabled="{= !${internalOrder} &amp;&amp; !${wbs} }" loadItems=".onCostCentreOpen" placeholder="Select Cost Centre..." width="100%" items="{ path: '/costCentres', length: 10000 }">
 											<core:ListItem id="Copy_IDGenListItem" key="{CostCenter}" text="{CostCenter}" />
 										</ComboBox>
 										<!-- Internal Order - NEW DROPDOWN -->
-										<ComboBox id="Copy_internalOrderSelect" selectedKey="{internalOrder}" change=".onTableFieldChange" loadItems=".onInternalOrderOpen" items="{/internalOrders}">
+										<ComboBox id="Copy_internalOrderSelect" selectedKey="{internalOrder}" change=".onTableFieldChange" enabled="{= !${costCentre} &amp;&amp; !${wbs} }" loadItems=".onInternalOrderOpen" items="{/internalOrders}">
 											<core:Item id="Copy_IDGenItemIO" key="{OrderNumber}" text="{displayText}" />
 										</ComboBox>
 										<!-- WBS -->
-										<Input id="Copy_IDGenInput7" value="{wbs}" placeholder="WBS" />
+										<Input id="Copy_IDGenInput7" value="{wbs}" placeholder="WBS" change=".onCostObjectChange" enabled="{= !${costCentre} &amp;&amp; !${internalOrder} }"/>
 										<!-- Trading Partner -->
 										<Select id="Copy_tradingPartnerSelect" selectedKey="{tradingPartner}">
 											<items>

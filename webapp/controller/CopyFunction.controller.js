@@ -406,21 +406,24 @@ sap.ui.define([
 
             var oModel = this.getView().getModel();
 
-            var totalUSD = oModel.getProperty("/totalUSD") || 0;
+            // ✅ ALWAYS use header total ONLY
+            var totalUSD = parseFloat(oModel.getProperty("/totalUSD")) || 0;
             var companyCode = oModel.getProperty("/companyCode");
 
-            if (!companyCode || !totalUSD) {
+            if (!companyCode) {
                 oModel.setProperty("/approvedBy", "");
                 return;
             }
 
             var threshold = this._getThreshold(companyCode);
 
+            // ✅ BELOW threshold → NO approver
             if (totalUSD < threshold) {
                 oModel.setProperty("/approvedBy", "");
                 return;
             }
 
+            // ✅ ABOVE threshold → Finance Manager
             var email = this._getFinanceManagerEmail(companyCode);
 
             oModel.setProperty("/approvedBy", email || "");
@@ -1449,6 +1452,41 @@ sap.ui.define([
             };
         },
 
+
+        _onCostObjectChange: function (oEvent) {
+
+            var oModel = this.getView().getModel();
+            var oContext = oEvent.getSource().getBindingContext();
+
+            if (!oContext) return;
+
+            var sPath = oContext.getPath();
+
+            var sCostCentre = oModel.getProperty(sPath + "/costCentre");
+            var sInternalOrder = oModel.getProperty(sPath + "/internalOrder");
+            var sWBS = oModel.getProperty(sPath + "/wbs");
+
+            // Cost Centre filled → clear others
+            if (sCostCentre) {
+                oModel.setProperty(sPath + "/internalOrder", "");
+                oModel.setProperty(sPath + "/wbs", "");
+            }
+
+            // Internal Order filled → clear others
+            if (sInternalOrder) {
+                oModel.setProperty(sPath + "/costCentre", "");
+                oModel.setProperty(sPath + "/wbs", "");
+            }
+
+            // WBS filled → clear others
+            if (sWBS) {
+                oModel.setProperty(sPath + "/costCentre", "");
+                oModel.setProperty(sPath + "/internalOrder", "");
+            }
+        },
+
+
+
         onAffiliateChange: function (oEvent) {
             var that = this;
             var oSource = oEvent.getSource();
@@ -2281,8 +2319,10 @@ sap.ui.define([
 
 
         _validateExcludeTaxValue: function (sPath, sValue) {
+
             var oModel = this.getView().getModel();
 
+            // Reset state
             oModel.setProperty(sPath + "/excludeTaxState", "None");
             oModel.setProperty(sPath + "/excludeTaxStateText", "");
 
@@ -2291,21 +2331,16 @@ sap.ui.define([
             var fValue = parseFloat(sValue);
             var fPONetAmount = parseFloat(oModel.getProperty(sPath + "/poNetAmount"));
 
+            // ✅ Validate number
             if (isNaN(fValue)) {
                 oModel.setProperty(sPath + "/excludeTaxState", "Error");
                 oModel.setProperty(sPath + "/excludeTaxStateText", "Must be a valid number");
                 return;
             }
 
-            if (fValue < 5000) {
-                oModel.setProperty(sPath + "/excludeTaxState", "Error");
-                oModel.setProperty(
-                    sPath + "/excludeTaxStateText",
-                    "Amount less than 5000 is not allowed for accrual"
-                );
-                return;
-            }
+            // ❌ REMOVED: 5000 validation (as per new requirement)
 
+            // ✅ Validate against PO amount
             if (!isNaN(fPONetAmount) && fValue > fPONetAmount) {
                 oModel.setProperty(sPath + "/excludeTaxState", "Error");
                 oModel.setProperty(

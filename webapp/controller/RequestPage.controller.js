@@ -49,7 +49,7 @@ sap.ui.define([
                 totalExcludeTax: 0,
                 totalUSD: 0,
                 wbsElements: [],
-wbsLoaded: false,
+                wbsLoaded: false,
                 costCenterOwner: "",
                 costCenterOwnerEmails: []
             });
@@ -966,51 +966,51 @@ wbsLoaded: false,
 
         onInternalOrderChange: function (oEvent) {
 
-    var oContext = oEvent.getSource().getBindingContext();
-    if (!oContext) return;
+            var oContext = oEvent.getSource().getBindingContext();
+            if (!oContext) return;
 
-    var sPath = oContext.getPath();
+            var sPath = oContext.getPath();
 
-    this._updateAccountAssignmentState(sPath);
-},
+            this._updateAccountAssignmentState(sPath);
+        },
 
-onWBSChange: function (oEvent) {
+        onWBSChange: function (oEvent) {
 
-    var oContext = oEvent.getSource().getBindingContext();
-    if (!oContext) return;
+            var oContext = oEvent.getSource().getBindingContext();
+            if (!oContext) return;
 
-    var sPath = oContext.getPath();
+            var sPath = oContext.getPath();
 
-    this._updateAccountAssignmentState(sPath);
-},
+            this._updateAccountAssignmentState(sPath);
+        },
 
         //WBS
 
         onWBSOpen: function (oEvent) {
 
-    var oModel = this.getView().getModel();
+            var oModel = this.getView().getModel();
 
-    if (oModel.getProperty("/wbsLoaded")) return;
+            if (oModel.getProperty("/wbsLoaded")) return;
 
-    var oComboBox = oEvent.getSource();
-    oComboBox.setBusy(true);
+            var oComboBox = oEvent.getSource();
+            oComboBox.setBusy(true);
 
-    WorkflowAPI.fetchWBS()
-        .then(function (aWBS) {
+            WorkflowAPI.fetchWBS()
+                .then(function (aWBS) {
 
-            if (aWBS && aWBS.length > 0) {
-                oModel.setProperty("/wbsElements", aWBS);
-                oModel.setProperty("/wbsLoaded", true);
-            }
+                    if (aWBS && aWBS.length > 0) {
+                        oModel.setProperty("/wbsElements", aWBS);
+                        oModel.setProperty("/wbsLoaded", true);
+                    }
 
-        })
-        .catch(function (err) {
-            console.error("Error loading WBS:", err);
-        })
-        .finally(function () {
-            oComboBox.setBusy(false);
-        });
-},
+                })
+                .catch(function (err) {
+                    console.error("Error loading WBS:", err);
+                })
+                .finally(function () {
+                    oComboBox.setBusy(false);
+                });
+        },
 
         _updateApprovedBy: function () {
 
@@ -2256,9 +2256,9 @@ onWBSChange: function (oEvent) {
                 costCentre: "",
                 internalOrder: "",
                 wbs: "",
-                        costCentreEnabled: true,
-        internalOrderEnabled: true,
-        wbsEnabled: true,
+                costCentreEnabled: true,
+                internalOrderEnabled: true,
+                wbsEnabled: true,
                 tradingPartner: "",
                 salesOrder: "",
                 salesOrderItem: "",
@@ -2569,33 +2569,33 @@ onWBSChange: function (oEvent) {
 
         _updateAccountAssignmentState: function (sPath) {
 
-    var oModel = this.getView().getModel();
+            var oModel = this.getView().getModel();
 
-    var costCentre = oModel.getProperty(sPath + "/costCentre");
-    var internalOrder = oModel.getProperty(sPath + "/internalOrder");
-    var wbs = oModel.getProperty(sPath + "/wbs");
+            var costCentre = oModel.getProperty(sPath + "/costCentre");
+            var internalOrder = oModel.getProperty(sPath + "/internalOrder");
+            var wbs = oModel.getProperty(sPath + "/wbs");
 
-    // Reset all
-    oModel.setProperty(sPath + "/costCentreEnabled", true);
-    oModel.setProperty(sPath + "/internalOrderEnabled", true);
-    oModel.setProperty(sPath + "/wbsEnabled", true);
+            // Reset all
+            oModel.setProperty(sPath + "/costCentreEnabled", true);
+            oModel.setProperty(sPath + "/internalOrderEnabled", true);
+            oModel.setProperty(sPath + "/wbsEnabled", true);
 
-    // Apply rule
-    if (costCentre) {
-        oModel.setProperty(sPath + "/internalOrderEnabled", false);
-        oModel.setProperty(sPath + "/wbsEnabled", false);
-    }
+            // Apply rule
+            if (costCentre) {
+                oModel.setProperty(sPath + "/internalOrderEnabled", false);
+                oModel.setProperty(sPath + "/wbsEnabled", false);
+            }
 
-    if (internalOrder) {
-        oModel.setProperty(sPath + "/costCentreEnabled", false);
-        oModel.setProperty(sPath + "/wbsEnabled", false);
-    }
+            if (internalOrder) {
+                oModel.setProperty(sPath + "/costCentreEnabled", false);
+                oModel.setProperty(sPath + "/wbsEnabled", false);
+            }
 
-    if (wbs) {
-        oModel.setProperty(sPath + "/costCentreEnabled", false);
-        oModel.setProperty(sPath + "/internalOrderEnabled", false);
-    }
-},
+            if (wbs) {
+                oModel.setProperty(sPath + "/costCentreEnabled", false);
+                oModel.setProperty(sPath + "/internalOrderEnabled", false);
+            }
+        },
 
         _preparePayloadForPatch: function (oData, iStatus) {
             return {
