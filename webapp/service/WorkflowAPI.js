@@ -6,39 +6,41 @@ sap.ui.define([
 
     return {
 
-    // ─── CONFIGS FROM APPCONFIG ─────────────────────────────────────────────
+        // ─── CONFIGS FROM APPCONFIG ─────────────────────────────────────────────
 
-    _workflowLogsConfig: AppConfig.workflowLogs,
+        _workflowLogsConfig: AppConfig.workflowLogs,
 
-    _processAutomationConfig: AppConfig.processAutomation,
+        _processAutomationConfig: AppConfig.processAutomation,
 
-    _instanceConfig: AppConfig.instance,
+        _instanceConfig: AppConfig.instance,
 
-    _taskInstanceConfig: AppConfig.taskInstance,
+        _taskInstanceConfig: AppConfig.taskInstance,
 
-    _businessPartnerConfig: AppConfig.businessPartner,
+        _businessPartnerConfig: AppConfig.businessPartner,
 
-    _companyCodeConfig: AppConfig.companyCode,
+        _companyCodeConfig: AppConfig.companyCode,
 
-    _glAccountConfig: AppConfig.glAccount,
+        _glAccountConfig: AppConfig.glAccount,
 
-    _purchaseOrderConfig: AppConfig.purchaseOrder,
+        _purchaseOrderConfig: AppConfig.purchaseOrder,
 
-    _purchaseOrderItemConfig: AppConfig.purchaseOrderItem,
+        _purchaseOrderItemConfig: AppConfig.purchaseOrderItem,
 
-    _costCentreConfig: AppConfig.costCentre,
+        _costCentreConfig: AppConfig.costCentre,
 
-    _internalOrderConfig: AppConfig.internalOrder,
+        _internalOrderConfig: AppConfig.internalOrder,
 
-    _salesOrderConfig: AppConfig.salesOrder,
+        _wbsConfig: AppConfig.wbs,
 
-    _currencyConfig: AppConfig.currency,
+        _salesOrderConfig: AppConfig.salesOrder,
 
-    _segmentConfig: AppConfig.segment,
+        _currencyConfig: AppConfig.currency,
 
-    _dashboardConfig: AppConfig.dashboard,
+        _segmentConfig: AppConfig.segment,
 
-    _dmsConfig: AppConfig.dms,
+        _dashboardConfig: AppConfig.dashboard,
+
+        _dmsConfig: AppConfig.dms,
 
         // ─── SHARED HELPER ───────────────────────────────────────────────────────────
 
@@ -48,123 +50,186 @@ sap.ui.define([
 
         // ───────────── DASHBOARD APIs ─────────────
 
-    fetchAccrualRequests: function () {
+        fetchAccrualRequests: function () {
 
-        var cfg = this._dashboardConfig;
+            var cfg = this._dashboardConfig;
 
-        return fetch(cfg.accrualApiEndpoint, {
-            method: "GET",
-            headers: {
-                "Authorization": this._getAuthHeader(cfg.username, cfg.password),
-                "Accept": "application/json"
-            }
-        })
-        .then(function (response) {
-
-            if (!response.ok) {
-                throw new Error("Failed to fetch accrual requests: " + response.status);
-            }
-
-            return response.json();
-        });
-    },
-
-    recallWorkflowInstance: function (instanceId) {
-
-        var cfg = this._dashboardConfig;
-
-        return fetch(cfg.recallApiEndpoint, {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json"
-            },
-            body: JSON.stringify({
-                instanceId: instanceId
+            return fetch(cfg.accrualApiEndpoint, {
+                method: "GET",
+                headers: {
+                    "Authorization": this._getAuthHeader(cfg.username, cfg.password),
+                    "Accept": "application/json"
+                }
             })
-        })
-        .then(function (response) {
+                .then(function (response) {
 
-            if (!response.ok) {
-                throw new Error("Recall failed: " + response.status);
+                    if (!response.ok) {
+                        throw new Error("Failed to fetch accrual requests: " + response.status);
+                    }
+
+                    return response.json();
+                });
+        },
+
+        recallWorkflowInstance: function (instanceId) {
+
+            var cfg = this._dashboardConfig;
+
+            return fetch(cfg.recallApiEndpoint, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify({
+                    instanceId: instanceId
+                })
+            })
+                .then(function (response) {
+
+                    if (!response.ok) {
+                        throw new Error("Recall failed: " + response.status);
+                    }
+
+                    return response;
+                });
+        },
+
+        // ─── VIEW DETAILS API ─────────────────────────────────────────────────────────────
+
+        fetchWorkflowContext: function (instanceId) {
+
+            var url =
+                this._instanceConfig.baseEndpoint +
+                "/" +
+                instanceId +
+                "/context";
+
+            return fetch(url, {
+                method: "GET",
+                headers: {
+                    "Authorization": this._getAuthHeader(
+                        this._instanceConfig.username,
+                        this._instanceConfig.password
+                    ),
+                    "Accept": "application/json"
+                }
+            })
+                .then(function (response) {
+
+                    if (!response.ok) {
+                        throw new Error("Failed to fetch workflow context: " + response.status);
+                    }
+
+                    return response.json();
+
+                });
+        },
+
+        //───Exchangerates─────────────────────────────────────────────────────────────
+
+        fetchExchangeRate: function (sourceCurrency, targetCurrency) {
+
+            var cfg = this._currencyConfig;
+
+            var url = cfg.apiEndpoint.replace(
+                "/I_Currency?$top=200",
+                "/C_CurrencyExchangeRateTP"
+            ) +
+                "?$filter=SourceCurrency eq '" + sourceCurrency +
+                "' and TargetCurrency eq '" + targetCurrency + "'";
+
+            return fetch(url, {
+                method: "GET",
+                headers: {
+                    "Authorization": this._getAuthHeader(cfg.username, cfg.password),
+                    "Accept": "application/json"
+                }
+            })
+                .then(function (response) {
+                    if (!response.ok) {
+                        throw new Error("Failed to fetch exchange rate: " + response.status);
+                    }
+                    return response.json();
+                })
+                .then(function (data) {
+
+                    if (data?.d?.results?.length > 0) {
+
+                        var rateObj = data.d.results[0];
+
+                        var quotation = rateObj.ExchangeRateQuotation; // D or I
+                        var rate = 0;
+
+                        // ✅ DIRECT
+                        if (quotation === "D") {
+                            rate =
+                                parseFloat(rateObj.DirectQuotedEffectiveExchRate) ||
+                                parseFloat(rateObj.ExchangeRate) ||
+                                parseFloat(rateObj.AbsoluteExchangeRate);
+                        }
+
+                        // ✅ INDIRECT
+                        else if (quotation === "I") {
+                            rate =
+                                parseFloat(rateObj.IndirectQuotedEffctvExchRate) ||
+                                parseFloat(rateObj.AbsoluteExchangeRate);
+                        }
+
+                        if (!rate || isNaN(rate)) {
+                            throw new Error("Exchange rate not found");
+                        }
+
+                        return {
+                            rate: rate,
+                            quotation: quotation
+                        };
+                    }
+
+                    throw new Error("No exchange rate found");
+                });
+        },
+        // ─── Workflow instance ─────────────────────────────────────────────────────────────
+
+        fetchWorkflowInstanceContext: function (instanceId) {
+
+            var cfg = this._instanceConfig;
+
+            var url = cfg.baseEndpoint + "/" + instanceId + "/context";
+
+            return fetch(url, {
+                method: "GET",
+                headers: {
+                    "Authorization": this._getAuthHeader(cfg.username, cfg.password),
+                    "Accept": "application/json"
+                }
+            })
+                .then(function (response) {
+
+                    if (!response.ok) {
+                        throw new Error("Failed to fetch workflow instance context: " + response.status);
+                    }
+
+                    return response.json();
+
+                });
+
+        },
+
+        getBusinessPartnerEndpoint: function (typeOfParty) {
+
+            var baseUrl = this._businessPartnerConfig.baseEndpoint;
+
+            if (typeOfParty === "Customer") {
+                return baseUrl + "/A_Customer";
             }
 
-            return response;
-        });
-    },
+            if (typeOfParty === "Supplier") {
+                return baseUrl + "/A_Supplier";
+            }
 
-    // ─── VIEW DETAILS API ─────────────────────────────────────────────────────────────
+            return baseUrl + "/A_BusinessPartner";
 
-     fetchWorkflowContext: function (instanceId) {
-
-    var url =
-        this._instanceConfig.baseEndpoint +
-        "/" +
-        instanceId +
-        "/context";
-
-    return fetch(url, {
-        method: "GET",
-        headers: {
-            "Authorization": this._getAuthHeader(
-                this._instanceConfig.username,
-                this._instanceConfig.password
-            ),
-            "Accept": "application/json"
-        }
-    })
-    .then(function (response) {
-
-        if (!response.ok) {
-            throw new Error("Failed to fetch workflow context: " + response.status);
-        }
-
-        return response.json();
-
-    });
-},
-
-// ─── Workflow instance ─────────────────────────────────────────────────────────────
-
-fetchWorkflowInstanceContext: function (instanceId) {
-
-    var cfg = this._instanceConfig;
-
-    var url = cfg.baseEndpoint + "/" + instanceId + "/context";
-
-    return fetch(url, {
-        method: "GET",
-        headers: {
-            "Authorization": this._getAuthHeader(cfg.username, cfg.password),
-            "Accept": "application/json"
-        }
-    })
-    .then(function (response) {
-
-        if (!response.ok) {
-            throw new Error("Failed to fetch workflow instance context: " + response.status);
-        }
-
-        return response.json();
-
-    });
-
-},
-
-getBusinessPartnerEndpoint: function(typeOfParty) {
-
-    var baseUrl = this._businessPartnerConfig.baseEndpoint;
-
-    if (typeOfParty === "Customer") {
-        return baseUrl + "/A_Customer";
-    }
-
-    if (typeOfParty === "Supplier") {
-        return baseUrl + "/A_Supplier";
-    }
-
-    return baseUrl + "/A_BusinessPartner";
-
-},
+        },
 
 
         // ─── DATE HELPER ─────────────────────────────────────────────────────────────
@@ -234,10 +299,10 @@ getBusinessPartnerEndpoint: function(typeOfParty) {
                     "Accept": "application/json"
                 }
             })
-            .then(function (response) {
-                if (!response.ok) throw new Error("Failed to fetch instance data: " + response.status);
-                return response.json();
-            });
+                .then(function (response) {
+                    if (!response.ok) throw new Error("Failed to fetch instance data: " + response.status);
+                    return response.json();
+                });
         },
 
         getTaskInstanceByWorkflowId: function (workflowInstanceId, maxRetries, retryDelay) {
@@ -256,26 +321,26 @@ getBusinessPartnerEndpoint: function(typeOfParty) {
                         "Accept": "application/json"
                     }
                 })
-                .then(function (response) {
-                    if (!response.ok) throw new Error("Failed to fetch task instances: " + response.status);
-                    return response.json();
-                })
-                .then(function (data) {
-                    if (Array.isArray(data)) {
-                        var readyForm = data.find(function (task) {
-                            return task.activityId === "form_accrualSubmissionForm_2" && task.status === "READY";
-                        });
-                        if (readyForm) return readyForm.id;
-                    }
+                    .then(function (response) {
+                        if (!response.ok) throw new Error("Failed to fetch task instances: " + response.status);
+                        return response.json();
+                    })
+                    .then(function (data) {
+                        if (Array.isArray(data)) {
+                            var readyForm = data.find(function (task) {
+                                return task.activityId === "form_accrualSubmissionForm_2" && task.status === "READY";
+                            });
+                            if (readyForm) return readyForm.id;
+                        }
 
-                    currentRetry++;
-                    if (currentRetry < maxRetries) {
-                        return new Promise(function (resolve) {
-                            setTimeout(function () { resolve(attempt()); }, retryDelay);
-                        });
-                    }
-                    throw new Error("No READY form found after " + maxRetries + " attempts");
-                });
+                        currentRetry++;
+                        if (currentRetry < maxRetries) {
+                            return new Promise(function (resolve) {
+                                setTimeout(function () { resolve(attempt()); }, retryDelay);
+                            });
+                        }
+                        throw new Error("No READY form found after " + maxRetries + " attempts");
+                    });
             };
 
             return attempt();
@@ -293,17 +358,17 @@ getBusinessPartnerEndpoint: function(typeOfParty) {
                 },
                 body: JSON.stringify(payload)
             })
-            .then(function (response) {
-                if (!response.ok) {
+                .then(function (response) {
+                    if (!response.ok) {
+                        return response.text().then(function (text) {
+                            throw new Error("PATCH failed (" + response.status + "): " + text);
+                        });
+                    }
                     return response.text().then(function (text) {
-                        throw new Error("PATCH failed (" + response.status + "): " + text);
+                        if (!text || text.trim() === "") return { success: true };
+                        try { return JSON.parse(text); } catch (e) { return { success: true, response: text }; }
                     });
-                }
-                return response.text().then(function (text) {
-                    if (!text || text.trim() === "") return { success: true };
-                    try { return JSON.parse(text); } catch (e) { return { success: true, response: text }; }
                 });
-            });
         },
 
         getAccessToken: function () {
@@ -316,35 +381,35 @@ getBusinessPartnerEndpoint: function(typeOfParty) {
                 },
                 body: "grant_type=client_credentials"
             })
-            .then(function (response) {
-                if (!response.ok) throw new Error("Failed to get access token: " + response.status);
-                return response.json();
-            })
-            .then(function (data) { return data.access_token; });
+                .then(function (response) {
+                    if (!response.ok) throw new Error("Failed to get access token: " + response.status);
+                    return response.json();
+                })
+                .then(function (data) { return data.access_token; });
         },
 
         triggerWorkflow: function (payload) {
-    var that = this;
-    return this.getAccessToken()
-        .then(function (token) {
-            return fetch(that._processAutomationConfig.apiEndpoint, {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                    "Authorization": "Bearer " + token
-                },
-                body: JSON.stringify(payload)
-            });
-        })
-        .then(function (response) {
-            if (!response.ok) {
-                return response.text().then(function (text) {
-                    throw new Error("Workflow trigger failed: " + response.status + "\n" + text);
+            var that = this;
+            return this.getAccessToken()
+                .then(function (token) {
+                    return fetch(that._processAutomationConfig.apiEndpoint, {
+                        method: "POST",
+                        headers: {
+                            "Content-Type": "application/json",
+                            "Authorization": "Bearer " + token
+                        },
+                        body: JSON.stringify(payload)
+                    });
+                })
+                .then(function (response) {
+                    if (!response.ok) {
+                        return response.text().then(function (text) {
+                            throw new Error("Workflow trigger failed: " + response.status + "\n" + text);
+                        });
+                    }
+                    return response.json();
                 });
-            }
-            return response.json();
-        });
-},
+        },
 
         // ─── MASTER DATA ─────────────────────────────────────────────────────────────
 
@@ -356,11 +421,11 @@ getBusinessPartnerEndpoint: function(typeOfParty) {
                     "Accept": "application/json"
                 }
             })
-            .then(function (r) { if (!r.ok) throw new Error("Failed: " + r.status); return r.json(); })
-            .then(function (data) { return data.d && data.d.results ? data.d.results : []; });
+                .then(function (r) { if (!r.ok) throw new Error("Failed: " + r.status); return r.json(); })
+                .then(function (data) { return data.d && data.d.results ? data.d.results : []; });
         },
 
-                searchSupplierByName: function (supplierName, typeOfParty) {
+        searchSupplierByName: function (supplierName, typeOfParty) {
             if (!supplierName || !typeOfParty) return Promise.resolve(null);
             var endpoint = this.getBusinessPartnerEndpoint(typeOfParty);
             var filter = typeOfParty === "Customer"
@@ -374,16 +439,16 @@ getBusinessPartnerEndpoint: function(typeOfParty) {
                     "Accept": "application/json"
                 }
             })
-            .then(function (r) { return r.ok ? r.json() : null; })
-            .then(function (data) {
-                if (data && data.d && data.d.results && data.d.results.length > 0) {
-                    return typeOfParty === "Customer"
-                        ? data.d.results[0].Customer || null
-                        : data.d.results[0].Supplier || null;
-                }
-                return null;
-            })
-            .catch(function () { return null; });
+                .then(function (r) { return r.ok ? r.json() : null; })
+                .then(function (data) {
+                    if (data && data.d && data.d.results && data.d.results.length > 0) {
+                        return typeOfParty === "Customer"
+                            ? data.d.results[0].Customer || null
+                            : data.d.results[0].Supplier || null;
+                    }
+                    return null;
+                })
+                .catch(function () { return null; });
         },
 
         fetchGLAccounts: function (companyCode) {
@@ -396,17 +461,17 @@ getBusinessPartnerEndpoint: function(typeOfParty) {
                     "Accept": "application/json"
                 }
             })
-            .then(function (r) { if (!r.ok) throw new Error("Failed: " + r.status); return r.json(); })
-            .then(function (data) {
-                if (!data.d || !data.d.results) return [];
-                return data.d.results.map(function (a) {
-                    return {
-                        GLAccount: a.GLAccount || "",
-                        GLAccountName: a.GLAccountName || "",
-                        displayText: (a.GLAccount || "") + " - " + (a.GLAccountName || "")
-                    };
+                .then(function (r) { if (!r.ok) throw new Error("Failed: " + r.status); return r.json(); })
+                .then(function (data) {
+                    if (!data.d || !data.d.results) return [];
+                    return data.d.results.map(function (a) {
+                        return {
+                            GLAccount: a.GLAccount || "",
+                            GLAccountName: a.GLAccountName || "",
+                            displayText: (a.GLAccount || "") + " - " + (a.GLAccountName || "")
+                        };
+                    });
                 });
-            });
         },
 
         fetchCostCentres: function (companyCode) {
@@ -419,11 +484,41 @@ getBusinessPartnerEndpoint: function(typeOfParty) {
                     "Accept": "application/json"
                 }
             })
-            .then(function (r) { if (!r.ok) throw new Error("Failed: " + r.status); return r.json(); })
-            .then(function (data) {
-                if (!data.d || !data.d.results) return [];
-                return data.d.results.map(function (cc) { return { CostCenter: cc.CostCenter || "" }; });
-            });
+                .then(function (r) { if (!r.ok) throw new Error("Failed: " + r.status); return r.json(); })
+                .then(function (data) {
+                    if (!data.d || !data.d.results) return [];
+                    return data.d.results.map(function (cc) { return { CostCenter: cc.CostCenter || "" }; });
+                });
+        },
+
+        fetchWBS: function () {
+
+            var cfg = this._wbsConfig;
+
+            return fetch(cfg.apiEndpoint, {
+                method: "GET",
+                headers: {
+                    "Authorization": this._getAuthHeader(cfg.username, cfg.password),
+                    "Accept": "application/json"
+                }
+            })
+                .then(function (response) {
+                    if (!response.ok) {
+                        throw new Error("Failed to fetch WBS: " + response.status);
+                    }
+                    return response.json();
+                })
+                .then(function (data) {
+
+                    if (!data.d || !data.d.results) return [];
+
+                    return data.d.results.map(function (item) {
+                        return {
+                            WBSElement: item.WBSElement,
+                            displayText: item.WBSElement
+                        };
+                    });
+                });
         },
 
         fetchCurrencyFromCostCenter: function (companyCode) {
@@ -436,14 +531,14 @@ getBusinessPartnerEndpoint: function(typeOfParty) {
                     "Accept": "application/json"
                 }
             })
-            .then(function (r) { return r.ok ? r.json() : null; })
-            .then(function (data) {
-                if (data && data.d && data.d.results && data.d.results.length > 0) {
-                    return data.d.results[0].CostCenterCurrency || null;
-                }
-                return null;
-            })
-            .catch(function () { return null; });
+                .then(function (r) { return r.ok ? r.json() : null; })
+                .then(function (data) {
+                    if (data && data.d && data.d.results && data.d.results.length > 0) {
+                        return data.d.results[0].CostCenterCurrency || null;
+                    }
+                    return null;
+                })
+                .catch(function () { return null; });
         },
 
         fetchApproverEmailFromCostCenter: function (costCenter) {
@@ -456,14 +551,14 @@ getBusinessPartnerEndpoint: function(typeOfParty) {
                     "Accept": "application/json"
                 }
             })
-            .then(function (r) { return r.ok ? r.json() : null; })
-            .then(function (data) {
-                if (data && data.d && data.d.results && data.d.results.length > 0) {
-                    return data.d.results[0].AddressName || null;
-                }
-                return null;
-            })
-            .catch(function () { return null; });
+                .then(function (r) { return r.ok ? r.json() : null; })
+                .then(function (data) {
+                    if (data && data.d && data.d.results && data.d.results.length > 0) {
+                        return data.d.results[0].AddressName || null;
+                    }
+                    return null;
+                })
+                .catch(function () { return null; });
         },
 
         fetchInternalOrders: function (companyCode) {
@@ -476,17 +571,17 @@ getBusinessPartnerEndpoint: function(typeOfParty) {
                     "Accept": "application/json"
                 }
             })
-            .then(function (r) { if (!r.ok) throw new Error("Failed: " + r.status); return r.json(); })
-            .then(function (data) {
-                if (!data.d || !data.d.results) return [];
-                return data.d.results.map(function (io) {
-                    return {
-                        OrderNumber: io.OrderNumber || "",
-                        OrderDescription: io.OrderDescription || "",
-                        displayText: (io.OrderNumber || "") + (io.OrderDescription ? " - " + io.OrderDescription : "")
-                    };
+                .then(function (r) { if (!r.ok) throw new Error("Failed: " + r.status); return r.json(); })
+                .then(function (data) {
+                    if (!data.d || !data.d.results) return [];
+                    return data.d.results.map(function (io) {
+                        return {
+                            OrderNumber: io.OrderNumber || "",
+                            OrderDescription: io.OrderDescription || "",
+                            displayText: (io.OrderNumber || "") + (io.OrderDescription ? " - " + io.OrderDescription : "")
+                        };
+                    });
                 });
-            });
         },
 
         fetchPurchaseOrders: function (supplierNumber) {
@@ -499,11 +594,11 @@ getBusinessPartnerEndpoint: function(typeOfParty) {
                     "Accept": "application/json"
                 }
             })
-            .then(function (r) { if (!r.ok) throw new Error("Failed: " + r.status); return r.json(); })
-            .then(function (data) {
-                if (!data.d || !data.d.results) return [];
-                return data.d.results.map(function (po) { return { PurchaseOrder: po.PurchaseOrder || "" }; });
-            });
+                .then(function (r) { if (!r.ok) throw new Error("Failed: " + r.status); return r.json(); })
+                .then(function (data) {
+                    if (!data.d || !data.d.results) return [];
+                    return data.d.results.map(function (po) { return { PurchaseOrder: po.PurchaseOrder || "" }; });
+                });
         },
 
         fetchPurchaseOrderItems: function (purchaseOrder) {
@@ -516,18 +611,18 @@ getBusinessPartnerEndpoint: function(typeOfParty) {
                     "Accept": "application/json"
                 }
             })
-            .then(function (r) { if (!r.ok) throw new Error("Failed: " + r.status); return r.json(); })
-            .then(function (data) {
-                if (!data.d || !data.d.results) return [];
-                return data.d.results.map(function (item) {
-                    return {
-                        PurchaseOrderItem: item.PurchaseOrderItem || "",
-                        PurchaseOrderItemText: item.PurchaseOrderItemText || "",
-                        NetAmount: item.NetAmount || "0.00",
-                        displayText: (item.PurchaseOrderItem || "") + (item.PurchaseOrderItemText ? " - " + item.PurchaseOrderItemText : "")
-                    };
+                .then(function (r) { if (!r.ok) throw new Error("Failed: " + r.status); return r.json(); })
+                .then(function (data) {
+                    if (!data.d || !data.d.results) return [];
+                    return data.d.results.map(function (item) {
+                        return {
+                            PurchaseOrderItem: item.PurchaseOrderItem || "",
+                            PurchaseOrderItemText: item.PurchaseOrderItemText || "",
+                            NetAmount: item.NetAmount || "0.00",
+                            displayText: (item.PurchaseOrderItem || "") + (item.PurchaseOrderItemText ? " - " + item.PurchaseOrderItemText : "")
+                        };
+                    });
                 });
-            });
         },
 
         fetchSalesOrders: function () {
@@ -538,17 +633,17 @@ getBusinessPartnerEndpoint: function(typeOfParty) {
                     "Accept": "application/json"
                 }
             })
-            .then(function (r) { if (!r.ok) throw new Error("Failed: " + r.status); return r.json(); })
-            .then(function (data) {
-                if (!data.d || !data.d.results) return [];
-                var oUnique = {};
-                data.d.results.forEach(function (item) {
-                    if (item.SalesOrder) oUnique[item.SalesOrder] = true;
+                .then(function (r) { if (!r.ok) throw new Error("Failed: " + r.status); return r.json(); })
+                .then(function (data) {
+                    if (!data.d || !data.d.results) return [];
+                    var oUnique = {};
+                    data.d.results.forEach(function (item) {
+                        if (item.SalesOrder) oUnique[item.SalesOrder] = true;
+                    });
+                    return Object.keys(oUnique).map(function (so) {
+                        return { SalesOrder: so };
+                    }).sort(function (a, b) { return a.SalesOrder.localeCompare(b.SalesOrder); });
                 });
-                return Object.keys(oUnique).map(function (so) {
-                    return { SalesOrder: so };
-                }).sort(function (a, b) { return a.SalesOrder.localeCompare(b.SalesOrder); });
-            });
         },
 
         fetchSalesOrderItems: function (salesOrder) {
@@ -561,8 +656,8 @@ getBusinessPartnerEndpoint: function(typeOfParty) {
                     "Accept": "application/json"
                 }
             })
-            .then(function (r) { if (!r.ok) throw new Error("Failed: " + r.status); return r.json(); })
-            .then(function (data) { return data.d && data.d.results ? data.d.results : []; });
+                .then(function (r) { if (!r.ok) throw new Error("Failed: " + r.status); return r.json(); })
+                .then(function (data) { return data.d && data.d.results ? data.d.results : []; });
         },
 
         fetchCurrencies: function () {
@@ -573,15 +668,15 @@ getBusinessPartnerEndpoint: function(typeOfParty) {
                     "Accept": "application/json"
                 }
             })
-            .then(function (r) { if (!r.ok) throw new Error("Failed: " + r.status); return r.json(); })
-            .then(function (data) {
-                if (!data.d || !data.d.results) return [];
-                var oUnique = {};
-                data.d.results.forEach(function (c) { if (c.CurrencyISOCode) oUnique[c.CurrencyISOCode] = true; });
-                return Object.keys(oUnique).map(function (code) {
-                    return { CurrencyISOCode: code };
-                }).sort(function (a, b) { return a.CurrencyISOCode.localeCompare(b.CurrencyISOCode); });
-            });
+                .then(function (r) { if (!r.ok) throw new Error("Failed: " + r.status); return r.json(); })
+                .then(function (data) {
+                    if (!data.d || !data.d.results) return [];
+                    var oUnique = {};
+                    data.d.results.forEach(function (c) { if (c.CurrencyISOCode) oUnique[c.CurrencyISOCode] = true; });
+                    return Object.keys(oUnique).map(function (code) {
+                        return { CurrencyISOCode: code };
+                    }).sort(function (a, b) { return a.CurrencyISOCode.localeCompare(b.CurrencyISOCode); });
+                });
         },
 
         fetchSegmentData: function (salesOrder) {
@@ -594,15 +689,15 @@ getBusinessPartnerEndpoint: function(typeOfParty) {
                     "Accept": "application/json"
                 }
             })
-            .then(function (r) { return r.ok ? r.json() : null; })
-            .then(function (data) {
-                if (data && data.d && data.d.results && data.d.results.length > 0) {
-                    var s = data.d.results[0];
-                    return { Product: s.Product || "", ShipToParty: s.ShipToParty || "", SoldToParty: s.SoldToParty || "" };
-                }
-                return null;
-            })
-            .catch(function () { return null; });
+                .then(function (r) { return r.ok ? r.json() : null; })
+                .then(function (data) {
+                    if (data && data.d && data.d.results && data.d.results.length > 0) {
+                        var s = data.d.results[0];
+                        return { Product: s.Product || "", ShipToParty: s.ShipToParty || "", SoldToParty: s.SoldToParty || "" };
+                    }
+                    return null;
+                })
+                .catch(function () { return null; });
         },
 
         // ─── BUSINESS PARTNER ────────────────────────────────────────────────────────
@@ -634,15 +729,15 @@ getBusinessPartnerEndpoint: function(typeOfParty) {
                     "Accept": "application/json"
                 }
             })
-            .then(function (r) { return r.ok ? r.json() : { d: { results: [] } }; })
-            .then(function (data) {
-                if (!data.d || !data.d.results) return [];
-                return data.d.results.map(function (p) {
-                    if (typeOfParty === "Customer") return { key: p.Customer || "", name: p.CustomerName || "", fullText: (p.Customer || "") + " - " + (p.CustomerName || "") };
-                    if (typeOfParty === "Supplier") return { key: p.Supplier || "", name: p.SupplierName || "", fullText: (p.Supplier || "") + " - " + (p.SupplierName || "") };
-                    return { key: p.BusinessPartner || "", name: p.BusinessPartnerName || "", fullText: (p.BusinessPartner || "") + " - " + (p.BusinessPartnerName || "") };
+                .then(function (r) { return r.ok ? r.json() : { d: { results: [] } }; })
+                .then(function (data) {
+                    if (!data.d || !data.d.results) return [];
+                    return data.d.results.map(function (p) {
+                        if (typeOfParty === "Customer") return { key: p.Customer || "", name: p.CustomerName || "", fullText: (p.Customer || "") + " - " + (p.CustomerName || "") };
+                        if (typeOfParty === "Supplier") return { key: p.Supplier || "", name: p.SupplierName || "", fullText: (p.Supplier || "") + " - " + (p.SupplierName || "") };
+                        return { key: p.BusinessPartner || "", name: p.BusinessPartnerName || "", fullText: (p.BusinessPartner || "") + " - " + (p.BusinessPartnerName || "") };
+                    });
                 });
-            });
         },
 
 
@@ -659,54 +754,54 @@ getBusinessPartnerEndpoint: function(typeOfParty) {
                     "Accept": "application/json"
                 }
             })
-            .then(function (r) { return r.ok ? r.json() : null; })
-            .then(function (data) {
-                if (data && data.d && data.d.results && data.d.results.length > 0) {
-                    var match = data.d.results.find(function (i) { return i.CompanyCode === companyCode; });
-                    return match ? match.ReconciliationAccount : data.d.results[0].ReconciliationAccount;
-                }
-                return null;
-            })
-            .catch(function () { return null; });
+                .then(function (r) { return r.ok ? r.json() : null; })
+                .then(function (data) {
+                    if (data && data.d && data.d.results && data.d.results.length > 0) {
+                        var match = data.d.results.find(function (i) { return i.CompanyCode === companyCode; });
+                        return match ? match.ReconciliationAccount : data.d.results[0].ReconciliationAccount;
+                    }
+                    return null;
+                })
+                .catch(function () { return null; });
         },
 
 
 
         fetchGLAccountsByRange: function (companyCode, fromGL, toGL) {
-    if (!companyCode) return Promise.resolve([]);
+            if (!companyCode) return Promise.resolve([]);
 
-    var url = this._glAccountConfig.apiEndpoint +
-        "?$filter=CompanyCode eq '" + companyCode +
-        "' and GLAccount ge '" + fromGL +
-        "' and GLAccount le '" + toGL + "'";
+            var url = this._glAccountConfig.apiEndpoint +
+                "?$filter=CompanyCode eq '" + companyCode +
+                "' and GLAccount ge '" + fromGL +
+                "' and GLAccount le '" + toGL + "'";
 
-    console.log("GL API URL:", url);
+            console.log("GL API URL:", url);
 
-    return fetch(url, {
-        method: "GET",
-        headers: {
-            "Authorization": this._getAuthHeader(
-                this._glAccountConfig.username,
-                this._glAccountConfig.password
-            ),
-            "Accept": "application/json"
-        }
-    })
-    .then(function (r) {
-        if (!r.ok) throw new Error("Failed: " + r.status);
-        return r.json();
-    })
-    .then(function (data) {
-        if (!data.d || !data.d.results) return [];
+            return fetch(url, {
+                method: "GET",
+                headers: {
+                    "Authorization": this._getAuthHeader(
+                        this._glAccountConfig.username,
+                        this._glAccountConfig.password
+                    ),
+                    "Accept": "application/json"
+                }
+            })
+                .then(function (r) {
+                    if (!r.ok) throw new Error("Failed: " + r.status);
+                    return r.json();
+                })
+                .then(function (data) {
+                    if (!data.d || !data.d.results) return [];
 
-        return data.d.results.map(function (a) {
-            return {
-                GLAccount: a.GLAccount,
-                displayText: a.GLAccount + " - " + (a.GLAccountName || "")
-            };
-        });
-    });
-},
+                    return data.d.results.map(function (a) {
+                        return {
+                            GLAccount: a.GLAccount,
+                            displayText: a.GLAccount + " - " + (a.GLAccountName || "")
+                        };
+                    });
+                });
+        },
 
         // ─── DMS ─────────────────────────────────────────────────────────────────────
 
@@ -722,11 +817,11 @@ getBusinessPartnerEndpoint: function(typeOfParty) {
                 headers: { "Content-Type": "application/x-www-form-urlencoded" },
                 body: params
             })
-            .then(function (r) { if (!r.ok) throw new Error("DMS token failed: " + r.status); return r.json(); })
-            .then(function (data) {
-                if (data.access_token) return data.access_token;
-                throw new Error("No access token in DMS response");
-            });
+                .then(function (r) { if (!r.ok) throw new Error("DMS token failed: " + r.status); return r.json(); })
+                .then(function (data) {
+                    if (data.access_token) return data.access_token;
+                    throw new Error("No access token in DMS response");
+                });
         },
 
         createDMSFolder: function (folderName) {
@@ -745,12 +840,12 @@ getBusinessPartnerEndpoint: function(typeOfParty) {
                     headers: { "Authorization": "Bearer " + token },
                     body: formData
                 })
-                .then(function (r) { if (!r.ok) throw new Error("Create folder failed: " + r.status); return r.json(); })
-                .then(function (data) {
-                    var objectId = data && data.succinctProperties && data.succinctProperties["cmis:objectId"];
-                    if (!objectId) throw new Error("cmis:objectId not found in response");
-                    return { objectId: objectId, folderName: folderName };
-                });
+                    .then(function (r) { if (!r.ok) throw new Error("Create folder failed: " + r.status); return r.json(); })
+                    .then(function (data) {
+                        var objectId = data && data.succinctProperties && data.succinctProperties["cmis:objectId"];
+                        if (!objectId) throw new Error("cmis:objectId not found in response");
+                        return { objectId: objectId, folderName: folderName };
+                    });
             });
         },
 
@@ -794,13 +889,13 @@ getBusinessPartnerEndpoint: function(typeOfParty) {
                 headers: { "Authorization": "Bearer " + token },
                 body: formData
             })
-            .then(function (r) { if (!r.ok) throw new Error("Upload failed: " + r.status); return r.json(); })
-            .then(function (data) {
-                return {
-                    objectId: data.succinctProperties && data.succinctProperties["cmis:objectId"] || "temp_id",
-                    name: oFile.name
-                };
-            });
+                .then(function (r) { if (!r.ok) throw new Error("Upload failed: " + r.status); return r.json(); })
+                .then(function (data) {
+                    return {
+                        objectId: data.succinctProperties && data.succinctProperties["cmis:objectId"] || "temp_id",
+                        name: oFile.name
+                    };
+                });
         },
 
         fetchDMSDocumentMetadata: function (objectId) {
@@ -816,151 +911,151 @@ getBusinessPartnerEndpoint: function(typeOfParty) {
                     "Accept": "application/json"
                 }
             })
-            .then(function (r) { if (!r.ok) throw new Error("Metadata fetch failed: " + r.status); return r.json(); })
-            .then(function (data) {
-                if (!data || !data.objects || !data.objects.length) return [];
-                return data.objects.map(function (doc) {
-                    var props = doc.object.properties;
-                    return {
-                        objectId:     props["cmis:objectId"]?.value || "",
-                        name:         props["cmis:name"]?.value || "Unnamed Document",
-                        mimeType:     props["cmis:contentStreamMimeType"]?.value || "application/octet-stream",
-                        fileName:     props["cmis:contentStreamFileName"]?.value || "download",
-                        fileSize:     props["cmis:contentStreamLength"]?.value || 0,
-                        creationDate: props["cmis:creationDate"]?.value || 0,
-                        lastModified: props["cmis:lastModificationDate"]?.value || 0
-                    };
+                .then(function (r) { if (!r.ok) throw new Error("Metadata fetch failed: " + r.status); return r.json(); })
+                .then(function (data) {
+                    if (!data || !data.objects || !data.objects.length) return [];
+                    return data.objects.map(function (doc) {
+                        var props = doc.object.properties;
+                        return {
+                            objectId: props["cmis:objectId"]?.value || "",
+                            name: props["cmis:name"]?.value || "Unnamed Document",
+                            mimeType: props["cmis:contentStreamMimeType"]?.value || "application/octet-stream",
+                            fileName: props["cmis:contentStreamFileName"]?.value || "download",
+                            fileSize: props["cmis:contentStreamLength"]?.value || 0,
+                            creationDate: props["cmis:creationDate"]?.value || 0,
+                            lastModified: props["cmis:lastModificationDate"]?.value || 0
+                        };
+                    });
                 });
-            });
         },
 
-        
+
         fetchDMSFilesFromFolder: function (sSupportingDocuments) {
-    if (!sSupportingDocuments) return Promise.resolve([]);
+            if (!sSupportingDocuments) return Promise.resolve([]);
 
-    // Extract folder ID from "spa-res:cmis:folderid:<folderId>"
-    var sFolderId = sSupportingDocuments.replace("spa-res:cmis:folderid:", "").trim();
-    if (!sFolderId) return Promise.resolve([]);
+            // Extract folder ID from "spa-res:cmis:folderid:<folderId>"
+            var sFolderId = sSupportingDocuments.replace("spa-res:cmis:folderid:", "").trim();
+            if (!sFolderId) return Promise.resolve([]);
 
-    var cfg = this._dmsConfig;
-    var base = cfg.baseUrl;
-    var repo = cfg.repositoryId;
+            var cfg = this._dmsConfig;
+            var base = cfg.baseUrl;
+            var repo = cfg.repositoryId;
 
-    var sFolderChildrenUrl = base + "/Download/browser/" + repo + "/root"
-        + "?cmisselector=children&objectId=" + encodeURIComponent(sFolderId);
+            var sFolderChildrenUrl = base + "/Download/browser/" + repo + "/root"
+                + "?cmisselector=children&objectId=" + encodeURIComponent(sFolderId);
 
-    return this.getDMSToken()
-        .then(function (token) {
-            return fetch(sFolderChildrenUrl, {
-                method: "GET",
-                headers: {
-                    "Authorization": "Bearer " + token,
-                    "Accept": "application/json"
-                }
-            });
-        })
-        .then(function (r) {
-            if (!r.ok) throw new Error("Folder children fetch failed: " + r.status);
-            var contentType = r.headers.get("content-type") || "";
-            if (!contentType.includes("application/json")) {
-                throw new Error("Response is not JSON. Content-Type: " + contentType);
-            }
-            return r.json();
-        })
-        .then(function (data) {
-            console.log("Folder children raw response:", JSON.stringify(data));
+            return this.getDMSToken()
+                .then(function (token) {
+                    return fetch(sFolderChildrenUrl, {
+                        method: "GET",
+                        headers: {
+                            "Authorization": "Bearer " + token,
+                            "Accept": "application/json"
+                        }
+                    });
+                })
+                .then(function (r) {
+                    if (!r.ok) throw new Error("Folder children fetch failed: " + r.status);
+                    var contentType = r.headers.get("content-type") || "";
+                    if (!contentType.includes("application/json")) {
+                        throw new Error("Response is not JSON. Content-Type: " + contentType);
+                    }
+                    return r.json();
+                })
+                .then(function (data) {
+                    console.log("Folder children raw response:", JSON.stringify(data));
 
-            var aObjects = (data.objects || []);
-            if (!aObjects.length) {
-                console.warn("No objects found in folder:", sFolderId);
-                return [];
-            }
+                    var aObjects = (data.objects || []);
+                    if (!aObjects.length) {
+                        console.warn("No objects found in folder:", sFolderId);
+                        return [];
+                    }
 
-            // ── Map ALL objects in the folder ─────────────────────────────
-            var aParsed = aObjects.map(function (oEntry) {
-                var oObject = oEntry.object || oEntry;
+                    // ── Map ALL objects in the folder ─────────────────────────────
+                    var aParsed = aObjects.map(function (oEntry) {
+                        var oObject = oEntry.object || oEntry;
 
-                var succinctProps = oObject.succinctProperties;
-                var regularProps  = oObject.properties;
+                        var succinctProps = oObject.succinctProperties;
+                        var regularProps = oObject.properties;
 
-                var sFileObjectId, sFileName, sMimeType, nFileSize, nCreationDate, sFolderIdInner;
+                        var sFileObjectId, sFileName, sMimeType, nFileSize, nCreationDate, sFolderIdInner;
 
-                if (succinctProps) {
-                    sFileObjectId  = succinctProps["cmis:objectId"] || "";
-                    sFileName      = succinctProps["cmis:contentStreamFileName"]
-                                  || succinctProps["cmis:name"]
-                                  || "Unknown File";
-                    sMimeType      = succinctProps["cmis:contentStreamMimeType"] || "";
-                    nFileSize      = succinctProps["cmis:contentStreamLength"] || 0;
-                    nCreationDate  = succinctProps["cmis:creationDate"] || 0;
-                    sFolderIdInner = (succinctProps["sap:parentIds"] || [])[0] || sFolderId;
+                        if (succinctProps) {
+                            sFileObjectId = succinctProps["cmis:objectId"] || "";
+                            sFileName = succinctProps["cmis:contentStreamFileName"]
+                                || succinctProps["cmis:name"]
+                                || "Unknown File";
+                            sMimeType = succinctProps["cmis:contentStreamMimeType"] || "";
+                            nFileSize = succinctProps["cmis:contentStreamLength"] || 0;
+                            nCreationDate = succinctProps["cmis:creationDate"] || 0;
+                            sFolderIdInner = (succinctProps["sap:parentIds"] || [])[0] || sFolderId;
 
-                } else if (regularProps) {
-                    sFileObjectId  = (regularProps["cmis:objectId"]              && regularProps["cmis:objectId"].value)              || "";
-                    sFileName      = (regularProps["cmis:contentStreamFileName"] && regularProps["cmis:contentStreamFileName"].value)
-                                  || (regularProps["cmis:name"]                  && regularProps["cmis:name"].value)
-                                  || "Unknown File";
-                    sMimeType      = (regularProps["cmis:contentStreamMimeType"] && regularProps["cmis:contentStreamMimeType"].value) || "";
-                    nFileSize      = (regularProps["cmis:contentStreamLength"]   && regularProps["cmis:contentStreamLength"].value)   || 0;
-                    nCreationDate  = (regularProps["cmis:creationDate"]          && regularProps["cmis:creationDate"].value)          || 0;
-                    sFolderIdInner = ((regularProps["sap:parentIds"] && regularProps["sap:parentIds"].value) || [])[0] || sFolderId;
+                        } else if (regularProps) {
+                            sFileObjectId = (regularProps["cmis:objectId"] && regularProps["cmis:objectId"].value) || "";
+                            sFileName = (regularProps["cmis:contentStreamFileName"] && regularProps["cmis:contentStreamFileName"].value)
+                                || (regularProps["cmis:name"] && regularProps["cmis:name"].value)
+                                || "Unknown File";
+                            sMimeType = (regularProps["cmis:contentStreamMimeType"] && regularProps["cmis:contentStreamMimeType"].value) || "";
+                            nFileSize = (regularProps["cmis:contentStreamLength"] && regularProps["cmis:contentStreamLength"].value) || 0;
+                            nCreationDate = (regularProps["cmis:creationDate"] && regularProps["cmis:creationDate"].value) || 0;
+                            sFolderIdInner = ((regularProps["sap:parentIds"] && regularProps["sap:parentIds"].value) || [])[0] || sFolderId;
 
-                } else {
-                    console.error("No properties found in object:", JSON.stringify(oObject));
-                    return null;
-                }
+                        } else {
+                            console.error("No properties found in object:", JSON.stringify(oObject));
+                            return null;
+                        }
 
-                if (!sFileObjectId) {
-                    console.error("No cmis:objectId found in object properties");
-                    return null;
-                }
+                        if (!sFileObjectId) {
+                            console.error("No cmis:objectId found in object properties");
+                            return null;
+                        }
 
-                // ── File type: prefer MIME, fallback to extension ──────────
-                var sFileType = "FILE";
-                if      (sMimeType.indexOf("spreadsheetml") > -1)  { sFileType = "XLSX"; }
-                else if (sMimeType.indexOf("ms-excel")      > -1)  { sFileType = "XLS";  }
-                else if (sMimeType.indexOf("pdf")           > -1)  { sFileType = "PDF";  }
-                else if (sMimeType.indexOf("ms-outlook")    > -1)  { sFileType = "MSG";  }
-                else if (sMimeType.indexOf("msword")        > -1)  { sFileType = "DOC";  }
-                else if (sMimeType.indexOf("wordprocessing") > -1) { sFileType = "DOCX"; }
-                else if (sMimeType.indexOf("png")           > -1)  { sFileType = "PNG";  }
-                else if (sMimeType.indexOf("jpeg")          > -1)  { sFileType = "JPG";  }
-                else {
-                    var aParts = sFileName.split(".");
-                    sFileType = aParts.length > 1 ? aParts[aParts.length - 1].toUpperCase() : "FILE";
-                }
+                        // ── File type: prefer MIME, fallback to extension ──────────
+                        var sFileType = "FILE";
+                        if (sMimeType.indexOf("spreadsheetml") > -1) { sFileType = "XLSX"; }
+                        else if (sMimeType.indexOf("ms-excel") > -1) { sFileType = "XLS"; }
+                        else if (sMimeType.indexOf("pdf") > -1) { sFileType = "PDF"; }
+                        else if (sMimeType.indexOf("ms-outlook") > -1) { sFileType = "MSG"; }
+                        else if (sMimeType.indexOf("msword") > -1) { sFileType = "DOC"; }
+                        else if (sMimeType.indexOf("wordprocessing") > -1) { sFileType = "DOCX"; }
+                        else if (sMimeType.indexOf("png") > -1) { sFileType = "PNG"; }
+                        else if (sMimeType.indexOf("jpeg") > -1) { sFileType = "JPG"; }
+                        else {
+                            var aParts = sFileName.split(".");
+                            sFileType = aParts.length > 1 ? aParts[aParts.length - 1].toUpperCase() : "FILE";
+                        }
 
-                // ── File size ─────────────────────────────────────────────
-                var sFileSizeFormatted;
-                if      (nFileSize < 1024)    { sFileSizeFormatted = nFileSize + " B"; }
-                else if (nFileSize < 1048576) { sFileSizeFormatted = Math.round(nFileSize / 1024) + " KB"; }
-                else                          { sFileSizeFormatted = Math.round(nFileSize / 1048576 * 10) / 10 + " MB"; }
+                        // ── File size ─────────────────────────────────────────────
+                        var sFileSizeFormatted;
+                        if (nFileSize < 1024) { sFileSizeFormatted = nFileSize + " B"; }
+                        else if (nFileSize < 1048576) { sFileSizeFormatted = Math.round(nFileSize / 1024) + " KB"; }
+                        else { sFileSizeFormatted = Math.round(nFileSize / 1048576 * 10) / 10 + " MB"; }
 
-                // ── Upload date ───────────────────────────────────────────
-                var sUploadedOn = nCreationDate
-                    ? new Date(nCreationDate).toLocaleDateString()
-                    : new Date().toLocaleDateString();
+                        // ── Upload date ───────────────────────────────────────────
+                        var sUploadedOn = nCreationDate
+                            ? new Date(nCreationDate).toLocaleDateString()
+                            : new Date().toLocaleDateString();
 
-                return {
-                    objectId  : sFileObjectId,
-                    fileName  : sFileName,
-                    fileType  : sFileType,
-                    fileSize  : sFileSizeFormatted,
-                    uploadedOn: sUploadedOn,
-                    folderId  : sFolderIdInner
-                };
-            }).filter(function (doc) {
-                return doc !== null; // drop any entries that failed to parse
-            });
+                        return {
+                            objectId: sFileObjectId,
+                            fileName: sFileName,
+                            fileType: sFileType,
+                            fileSize: sFileSizeFormatted,
+                            uploadedOn: sUploadedOn,
+                            folderId: sFolderIdInner
+                        };
+                    }).filter(function (doc) {
+                        return doc !== null; // drop any entries that failed to parse
+                    });
 
-            console.log("DMS files parsed successfully (" + aParsed.length + "):", JSON.stringify(aParsed));
-            return aParsed;
-        })
-        .catch(function (error) {
-            console.error("WorkflowAPI: Error fetching DMS files from folder:", error);
-            return [];
-        });
-},
+                    console.log("DMS files parsed successfully (" + aParsed.length + "):", JSON.stringify(aParsed));
+                    return aParsed;
+                })
+                .catch(function (error) {
+                    console.error("WorkflowAPI: Error fetching DMS files from folder:", error);
+                    return [];
+                });
+        },
 
         downloadDMSFile: function (objectId) {
             var ep = this._dmsConfig.endpoints();
@@ -975,23 +1070,23 @@ getBusinessPartnerEndpoint: function(typeOfParty) {
         },
 
         deleteDMSFile: function (objectId) {
-                var ep = this._dmsConfig.endpoints();
-                return this.getDMSToken()
-                    .then(function (token) {
-                        var formData = new FormData();
-                        formData.append("cmisaction", "delete");
-                        formData.append("objectId", objectId);
+            var ep = this._dmsConfig.endpoints();
+            return this.getDMSToken()
+                .then(function (token) {
+                    var formData = new FormData();
+                    formData.append("cmisaction", "delete");
+                    formData.append("objectId", objectId);
 
-                        return fetch(ep.delete, {          // ← no folderName appended
-                            method: "POST",
-                            headers: { "Authorization": "Bearer " + token },
-                            body: formData
-                        });
-                    })
-                    .then(function (r) {
-                        if (!r.ok) throw new Error("Delete failed: " + r.statusText);
-                        return true;
+                    return fetch(ep.delete, {          // ← no folderName appended
+                        method: "POST",
+                        headers: { "Authorization": "Bearer " + token },
+                        body: formData
                     });
-            }
+                })
+                .then(function (r) {
+                    if (!r.ok) throw new Error("Delete failed: " + r.statusText);
+                    return true;
+                });
+        }
     };
 });

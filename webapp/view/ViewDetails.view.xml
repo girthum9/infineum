@@ -42,8 +42,8 @@
                             <Label id="_IDGenLabel17" text="Type of Accrual"/>
                             <Text id="_IDGenText29" text="{/requestType}"/>
 
-                            <Label id="_IDGenLabel10" text="Debit GL Type"/>
-                            <Text id="_IDGenText300" text="{/debitGLType}"/>
+                            <!--<Label id="_IDGenLabel10" text="Debit GL Type"/>
+                            <Text id="_IDGenText300" text="{/debitGLType}"/>-->
 
                             <Label id="_IDGenLabel18" text="Type of Party"/>
                             <Text id="_IDGenText30" text="{/typeOfParty}"/>

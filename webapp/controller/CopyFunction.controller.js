@@ -44,10 +44,30 @@ sap.ui.define([
                 isEditMode: false,
                 instanceId: "",
                 dmsDocuments: [],
-                dmsFolderId: ""
+                dmsFolderId: "",
+                totalExcludeTax: 0,
+                totalUSD: 0,
+                costCenterOwner: "",
+                costCenterOwnerEmails: []
             });
 
             this.getView().setModel(oModel);
+
+            var oModel = this.getView().getModel();
+
+            oModel.attachPropertyChange(function (oEvent) {
+
+                var sPath = oEvent.getParameter("path");
+
+                if (sPath && (
+                    sPath.includes("excludeTax") ||
+                    sPath.includes("items") ||
+                    sPath.includes("currency")
+                )) {
+                    this._convertToUSD();
+                }
+
+            }.bind(this));
 
             // Check for instance ID in URL on initial load
             var sInstanceId = this._getInstanceIdFromURL();
@@ -108,8 +128,11 @@ sap.ui.define([
             }
         },
 
-        _fetchCompanyCodes: function () {
+        onAccrualTypeChange: function () {
+            this._applyDebitGLLogic();
+        },
 
+        _fetchCompanyCodes: function () {
             var that = this;
             var oModel = this.getView().getModel();
             var oAffiliateSelect = this.byId("affiliateSelect");
@@ -119,12 +142,12 @@ sap.ui.define([
             }
 
             return WorkflowAPI.fetchCompanyCodes()
-
                 .then(function (aCompanyCodes) {
 
+                    // ✅ Filter: remove nulls + restrict "Infineum USA Inc"
                     var aFilteredCompanyCodes = aCompanyCodes.filter(function (item) {
                         return item.CompanyCodeName &&
-                            item.CompanyCodeName.toUpperCase().startsWith("INFINEUM");
+                            item.CompanyCodeName !== "Infineum USA Inc";
                     });
 
                     aFilteredCompanyCodes.sort(function (a, b) {
@@ -142,9 +165,7 @@ sap.ui.define([
                     oModel.setProperty("/companyCodes", aFilteredCompanyCodes);
                     oModel.setProperty("/affiliateToCompanyCodeMap", oMapping);
                     oModel.setProperty("/companyCodesLoaded", true);
-
                 })
-
                 .finally(function () {
                     if (oAffiliateSelect) {
                         oAffiliateSelect.setBusy(false);
@@ -152,12 +173,260 @@ sap.ui.define([
                 });
         },
 
+        //----Debit GL------------------------------------
+
+        _applyDebitGLLogic: function () {
+
+            var oModel = this.getView().getModel();
+
+            var sAccrualType = oModel.getProperty("/requestType"); // Copy page
+            var sCompanyCode = oModel.getProperty("/companyCode");
+            var aItems = oModel.getProperty("/items") || [];
+
+            if (!sAccrualType || !sCompanyCode) return;
+
+            sap.ui.core.BusyIndicator.show(0);
+
+            var pPromise;
+
+            // ===== COMMISSION =====
+            if (sAccrualType === "Commission") {
+
+                pPromise = Promise.resolve([
+                    { GLAccount: "70400005", displayText: "70400005 - Corporate Charge Revenue-Miscellaneous" },
+                    { GLAccount: "70400011", displayText: "70400011 - Corporate Charge Expense-Miscellaneous" },
+                    { GLAccount: "51100001", displayText: "51100001 - Marketing-Commissions" }
+                ]);
+            }
+
+            // ===== REBATE =====
+            else if (sAccrualType === "Rebate") {
+
+                pPromise = Promise.resolve([
+                    { GLAccount: "41000000", displayText: "41000000 - Sales Revenue Accruals Non-Group-Goods" },
+                    { GLAccount: "41100000", displayText: "41100000 - Sales Revenue Accruals Intercompany-Goods" }
+                ]);
+            }
+
+            // ===== ADHOC =====
+            else if (sAccrualType === "Adhoc") {
+
+                pPromise = WorkflowAPI.fetchGLAccountsByRange(
+                    sCompanyCode,
+                    "51000000",
+                    "69999999"
+                );
+            }
+
+            // ===== TECHNOLOGY =====
+            else if (sAccrualType === "Technology") {
+
+                pPromise = Promise.resolve([
+                    { GLAccount: "63600001", displayText: "63600001 - Technology-Research & Development Consulting" },
+                    { GLAccount: "63600005", displayText: "63600005 - Technology-Bench Testing" },
+                    { GLAccount: "63600004", displayText: "63600004 - Technology-Engine Testing" },
+                    { GLAccount: "63600008", displayText: "63600008 - Technology-Bill-Out" },
+                    { GLAccount: "63600006", displayText: "63600006 - Technology-Field Testing" },
+                    { GLAccount: "40000002", displayText: "40000002 - Sales Revenue Non-Group-Tech Fund" },
+                    { GLAccount: "51100000", displayText: "51100000 - Marketing-Tech Fund" },
+                    { GLAccount: "14100004", displayText: "14100004 - Deferred Intercompany-Other Accrual" },
+                    { GLAccount: "42000002", displayText: "42000002 - Other Revenue Non-Group-Co Fund" },
+                    { GLAccount: "12800000", displayText: "12800000 - Other Current Receivables-Third Party" },
+                    { GLAccount: "50800000", displayText: "50800000 - Cost of Goods Sold Non-Group-Tech Fund & CoFund" }
+                ]);
+            }
+
+            pPromise
+                .then(function (aGL) {
+
+                    // store global list
+                    oModel.setProperty("/filteredGLGlobal", aGL);
+
+                    aItems.forEach(function (item, index) {
+
+                        var sPath = "/items/" + index;
+                        var sExistingGL = item.glAccount;
+
+                        var aFinalGL = aGL;
+
+                        // ✅ ADD MISSING GL INTO DROPDOWN (CRITICAL FIX)
+                        if (sExistingGL) {
+
+                            sExistingGL = sExistingGL.toString().trim();
+
+                            var bExists = aGL.some(function (g) {
+                                return g.GLAccount === sExistingGL;
+                            });
+
+                            if (!bExists) {
+                                aFinalGL = aGL.concat([{
+                                    GLAccount: sExistingGL,
+                                    displayText: sExistingGL + " (Existing)"
+                                }]);
+                            }
+                        }
+
+                        // ✅ APPLY FINAL LIST
+                        oModel.setProperty(sPath + "/filteredGLAccounts", aFinalGL);
+                    });
+
+                })
+                .catch(function (err) {
+                    console.error("GL Logic Error:", err);
+                })
+                .finally(function () {
+                    sap.ui.core.BusyIndicator.hide();
+                });
+        },
+
+
         onExit: function () {
             // Remove hash change listener when view is destroyed
             if (this._hashChangeHandler) {
                 window.removeEventListener("hashchange", this._hashChangeHandler);
             }
         },
+
+
+        _calculateTotalAmount: function () {
+
+            var oModel = this.getView().getModel();
+            var aItems = oModel.getProperty("/items") || [];
+
+            var total = 0;
+
+            aItems.forEach(function (item) {
+                var val = parseFloat(item.excludeTax);
+                if (!isNaN(val)) {
+                    total += val;
+                }
+            });
+
+            total = parseFloat(total.toFixed(2));
+
+            oModel.setProperty("/totalExcludeTax", total);
+
+            return total;
+        },
+
+
+        _convertToUSD: function () {
+
+            var oModel = this.getView().getModel();
+            var aItems = oModel.getProperty("/items") || [];
+            var currency = aItems[0] ? aItems[0].currency : "";
+
+            var total = this._calculateTotalAmount();
+
+            if (!currency || !total) {
+                oModel.setProperty("/totalUSD", 0.00);
+                this._updateApprovedBy();
+                return Promise.resolve(0);
+            }
+
+            if (currency === "USD") {
+                var rounded = parseFloat(total.toFixed(2));
+                oModel.setProperty("/totalUSD", rounded);
+                this._updateApprovedBy();
+                return Promise.resolve(rounded);
+            }
+
+            return WorkflowAPI.fetchExchangeRate(currency, "USD")
+                .then((res) => {
+
+                    if (!res || !res.rate) {
+                        throw new Error("Exchange rate not found");
+                    }
+
+                    var totalUSD;
+
+                    if (res.quotation === "I") {
+                        totalUSD = total / res.rate;
+                    } else {
+                        totalUSD = total * res.rate;
+                    }
+
+                    totalUSD = parseFloat(totalUSD.toFixed(2));
+
+                    oModel.setProperty("/totalUSD", totalUSD);
+
+                    this._updateApprovedBy();
+
+                    return totalUSD;
+                })
+                .catch((err) => {
+                    console.error("Conversion error:", err);
+                    oModel.setProperty("/totalUSD", 0.00);
+                    this._updateApprovedBy();
+                });
+        },
+
+
+        _getFinanceManagerEmail: function (companyCode) {
+
+            var map = {
+                "BRC1": "Jorge.Nascimento@Infineum.com",
+                "USC1": "Sophie.Paterson@Infineum.com",
+                "DEC1": "Gordana.Sedic@Infineum.com",
+                "DEC2": "Gordana.Sedic@Infineum.com",
+                "NLC1": "Helen.Summerville@Infineum.com",
+                "NLC2": "Helen.Summerville@Infineum.com",
+                "GBC1": "Helen.Summerville@Infineum.com",
+                "GBC2": "Helen.Summerville@Infineum.com",
+                "FRC1": "Helen.Summerville@Infineum.com",
+                "ESC1": "Helen.Summerville@Infineum.com",
+                "ITC1": "Stefania.Torselli@Infineum.com",
+                "INC1": "Anagha.Venkitaraman@Infineum.com",
+                "SGC1": "KiatLi.Lee@Infineum.com",
+                "JPC1": "KiatLi.Lee@Infineum.com",
+                "KRC1": "KiatLi.Lee@Infineum.com",
+                "CNC1": "Xuan.Li@Infineum.com",
+                "CNC2": "Xuan.Li@Infineum.com"
+            };
+
+            return map[companyCode] || "";
+        },
+
+
+        _getThreshold: function (companyCode) {
+
+            var small = ["DEC2", "ESC1", "GBC2", "INC1", "JPC1", "KRC1", "USC2", "CNC1", "CNC2"];
+            var medium = ["BRC1", "GBC1", "NLC1", "NLC2"];
+            var large = ["DEC1", "FRC1", "ITC1", "SGC1", "USC1"];
+
+            if (small.includes(companyCode)) return 5000;
+            if (medium.includes(companyCode)) return 25000;
+            if (large.includes(companyCode)) return 50000;
+
+            return 5000;
+        },
+
+
+        _updateApprovedBy: function () {
+
+            var oModel = this.getView().getModel();
+
+            var totalUSD = oModel.getProperty("/totalUSD") || 0;
+            var companyCode = oModel.getProperty("/companyCode");
+
+            if (!companyCode || !totalUSD) {
+                oModel.setProperty("/approvedBy", "");
+                return;
+            }
+
+            var threshold = this._getThreshold(companyCode);
+
+            if (totalUSD < threshold) {
+                oModel.setProperty("/approvedBy", "");
+                return;
+            }
+
+            var email = this._getFinanceManagerEmail(companyCode);
+
+            oModel.setProperty("/approvedBy", email || "");
+        },
+
+
 
         _fetchCurrencyFromCostCenter: function (companyCode) {
             if (!companyCode) {
@@ -546,14 +815,32 @@ sap.ui.define([
                 getValue(formData, "typeOfAccrual", "TypeofRequest", "accrualType") || "";
             oModel.setProperty("/requestType", sAccrualType);
 
-            oModel.setProperty("/typeOfParty",
-                getValue(formData, "typeOfParty", "Partytype")
-            );
+            oModel.setProperty("/typeOfParty", getValue(formData, "typeOfParty", "Partytype"));
+
+            var sCostCenterOwnerRaw = getValue(formData, "CostCenterOwner", "costCenterOwner", "");
+
+            if (sCostCenterOwnerRaw) {
+                // Build the emails array from the comma-separated string
+                var aCCOwnerEmails = sCostCenterOwnerRaw.split(",")
+                    .map(function (e) { return e.trim(); })
+                    .filter(function (e) { return e !== ""; })
+                    .map(function (e) { return { email: e }; });
+
+                oModel.setProperty("/costCenterOwnerEmails", aCCOwnerEmails);
+
+                // Auto-select first email as default
+                if (aCCOwnerEmails.length >= 1) {
+                    oModel.setProperty("/costCenterOwner", aCCOwnerEmails[0].email);
+                }
+            } else {
+                oModel.setProperty("/costCenterOwnerEmails", []);
+                oModel.setProperty("/costCenterOwner", "");
+            }
 
             // ───────────────── GL TYPE ─────────────────
 
-            var sGLType = getValue(formData, "debitGLType", "DebitGLType");
-            oModel.setProperty("/glType", sGLType);
+            //var sGLType = getValue(formData, "debitGLType", "DebitGLType");
+            //oModel.setProperty("/glType", sGLType);
 
             // ───────────────── LINE ITEMS ─────────────────
 
@@ -563,49 +850,62 @@ sap.ui.define([
 
             if (accrualTable && accrualTable.length > 0) {
 
-                var aItems = accrualTable.map(function (item) {
+                var aItems = accrualTable
+                    .filter(function (item) {
+                        return (item.creditDebitIndicator || item.CreditDebitIndicator) === "Debit";
+                    })
+                    .map(function (item) {
 
-                    return {
-                        supplier: getValue(item, "supplierCustomer", "SupplierCustomer"),
-                        supplierNumber: "",
-                        description: getValue(item, "description", "Description"),
-                        currency: getValue(item, "currency", "Currency"),
-                        excludeTax: getValue(item, "excludeTax", "ExcludeTax"),
-                        glAccount: getValue(item, "gLAccountCode", "GLAccountCode"),
-                        creditDebit: getValue(item, "creditDebitIndicator", "CreditDebitIndicator"),
-                        poNumber: getValue(item, "purchaseOrderNumber", "PurchaseOrderNumber"),
-                        poLineItem: getValue(item, "purchaseOrderLineItem", "PurchaseOrderLineItem"),
-                        costCentre: getValue(item, "costCentre", "CostCentre"),
-                        internalOrder: getValue(item, "internalOrder", "InternalOrder"),
-                        wbs: getValue(item, "wBS", "WBS"),
-                        tradingPartner: getValue(item, "tradingPartner", "TradingPartner"),
-                        salesOrder: getValue(item, "salesOrderNumber", "SalesOrderNumber"),
-                        salesOrderItem: getValue(item, "salesOrderItemNumber", "SalesOrderItemNumber"),
-                        SegmentProduct: getValue(item, "segmentProduct", "SegmentProduct"),
-                        segmentShip: getValue(item, "segmentShiptoParty", "SegmentShiptoParty"),
-                        segmentSold: getValue(item, "segmentSoldtoParty", "SegmentSoldtoParty"),
+                        return {
+                            supplier: getValue(item, "supplierCustomer", "SupplierCustomer"),
+                            supplierNumber: "",
+                            description: getValue(item, "description", "Description"),
+                            currency: getValue(item, "currency", "Currency"),
+                            excludeTax: getValue(item, "excludeTax", "ExcludeTax"),
+                            glAccount: getValue(item, "gLAccountCode", "GLAccountCode"),
 
-                        purchaseOrders: [],
-                        purchaseOrderItems: [],
-                        salesOrderItems: [],
-                        filteredGLAccounts: [],
+                            // 🔥 FORCE DEBIT IN UI
+                            creditDebit: "Debit",
 
-                        supplierState: "None",
-                        supplierStateText: "",
-                        descriptionState: "None",
-                        descriptionStateText: "",
-                        currencyState: "None",
-                        currencyStateText: "",
-                        excludeTaxState: "None",
-                        excludeTaxStateText: "",
-                        glAccountState: "None",
-                        glAccountStateText: "",
-                        creditDebitState: "None",
-                        creditDebitStateText: ""
-                    };
-                });
+                            poNumber: getValue(item, "purchaseOrderNumber", "PurchaseOrderNumber"),
+                            poLineItem: getValue(item, "purchaseOrderLineItem", "PurchaseOrderLineItem"),
+                            costCentre: getValue(item, "costCentre", "CostCentre"),
+                            internalOrder: getValue(item, "internalOrder", "InternalOrder"),
+                            wbs: getValue(item, "wBS", "WBS"),
+                            tradingPartner: getValue(item, "tradingPartner", "TradingPartner"),
+                            salesOrder: getValue(item, "salesOrderNumber", "SalesOrderNumber"),
+                            salesOrderItem: getValue(item, "salesOrderItemNumber", "SalesOrderItemNumber"),
+                            SegmentProduct: getValue(item, "segmentProduct", "SegmentProduct"),
+                            segmentShip: getValue(item, "segmentShiptoParty", "SegmentShiptoParty"),
+                            segmentSold: getValue(item, "segmentSoldtoParty", "SegmentSoldtoParty"),
+
+                            purchaseOrders: [],
+                            purchaseOrderItems: [],
+                            salesOrderItems: [],
+                            filteredGLAccounts: [],
+
+                            supplierState: "None",
+                            supplierStateText: "",
+                            descriptionState: "None",
+                            descriptionStateText: "",
+                            currencyState: "None",
+                            currencyStateText: "",
+                            excludeTaxState: "None",
+                            excludeTaxStateText: "",
+                            glAccountState: "None",
+                            glAccountStateText: "",
+                            creditDebitState: "None",
+                            creditDebitStateText: ""
+                        };
+                    });
 
                 oModel.setProperty("/items", aItems);
+
+                this._applyDebitGLLogic();
+
+                setTimeout(function () {
+                    this._convertToUSD();
+                }.bind(this), 0);
 
                 this._loadSupplierNumbersAndPOData(
                     accrualTable,
@@ -643,79 +943,7 @@ sap.ui.define([
                 }
             }
 
-            // ───────────────── GL FILTER TRIGGER ─────────────────
-
-            if (sGLType) {
-                setTimeout(function () {
-                    that.onGLTypeChangeHeader({
-                        getSource: function () {
-                            return {
-                                getSelectedKey: function () {
-                                    return sGLType;
-                                }
-                            };
-                        }
-                    });
-                }, 300);
-            }
-
             console.log("Instance data mapped to model successfully");
-        },
-
-        onGLTypeChangeHeader: function (oEvent) {
-            var sType = oEvent.getSource().getSelectedKey();
-            var oModel = this.getView().getModel();
-
-            var sCompanyCode = oModel.getProperty("/companyCode");
-            var aItems = oModel.getProperty("/items") || [];
-
-            if (!sCompanyCode) {
-                sap.m.MessageToast.show("Select Affiliate first");
-                return;
-            }
-
-            var sFrom = "";
-            var sTo = "";
-
-            if (sType === "Fixed") {
-                sFrom = "60000000";
-                sTo = "69999999";
-            } else if (sType === "Variable") {
-                sFrom = "51000000";
-                sTo = "52299999";
-            }
-
-            sap.ui.core.BusyIndicator.show(0);
-
-            WorkflowAPI.fetchGLAccountsByRange(sCompanyCode, sFrom, sTo)
-                .then(function (aGL) {
-
-                    //Store globally
-                    oModel.setProperty("/filteredGLGlobal", aGL);
-
-                    aItems.forEach(function (item, index) {
-
-                        var sItemPath = "/items/" + index;
-
-                        // DO NOT CLEAR EXISTING GL IN COPY MODE
-
-                        if (!item.glAccount) {
-                            // only clear if empty (new row)
-                            oModel.setProperty(sItemPath + "/glAccount", "");
-                        }
-
-                        // Always update dropdown list
-                        oModel.setProperty(sItemPath + "/filteredGLAccounts", aGL);
-
-                    });
-
-                })
-                .catch(function () {
-                    sap.m.MessageToast.show("GL fetch failed");
-                })
-                .finally(function () {
-                    sap.ui.core.BusyIndicator.hide();
-                });
         },
 
 
@@ -878,53 +1106,41 @@ sap.ui.define([
             return WorkflowAPI.searchSupplierByName(supplierName, typeOfParty);
         },
 
-        //-- Add credit line item -------------------
 
-        onAddCreditFromRowCopy: function (oEvent) {
+        _preparePayloadWithCreditLogic: function () {
+
             var oModel = this.getView().getModel();
-            var aItems = oModel.getProperty("/items");
+            var aItems = oModel.getProperty("/items") || [];
 
-            var oContext = oEvent.getSource().getBindingContext();
-            if (!oContext) return;
+            var aFinalItems = [];
 
-            var sPath = oContext.getPath();
-            var iIndex = parseInt(sPath.split("/").pop());
+            aItems.forEach(function (oItem) {
 
-            var oSelectedItem = aItems[iIndex];
+                aFinalItems.push({ ...oItem });
 
-            //Only allow from Debit
-            if (oSelectedItem.creditDebit !== "Debit") {
-                sap.m.MessageBox.warning("Credit line can be created only from a Debit row.");
-                return;
-            }
+                if (oItem.creditDebit === "Debit") {
 
-            var oNewItem = JSON.parse(JSON.stringify(oSelectedItem));
+                    var oCreditItem = { ...oItem };
 
-            oNewItem.creditDebit = "Credit";
+                    oCreditItem.creditDebit = "Credit";
 
-            //GL Mapping
-            var sAccrualType = oModel.getProperty("/requestType");
+                    var sAccrualType = oModel.getProperty("/requestType");
 
-            var oGLMap = {
-                "Commission": "21000010",
-                "Rebate": "21000011",
-                "Adhoc": "21000012",
-                "Technology": "21000013"
-            };
+                    var oGLMap = {
+                        "Commission": "21000010",
+                        "Rebate": "21000011",
+                        "Adhoc": "21000012",
+                        "Technology": "21000013"
+                    };
 
-            oNewItem.glAccount = oGLMap[sAccrualType] || "";
+                    oCreditItem.glAccount = oGLMap[sAccrualType] || "";
 
-            //Reset validation states
-            oNewItem.glAccountState = "None";
-            oNewItem.glAccountStateText = "";
-            oNewItem.creditDebitState = "None";
-            oNewItem.creditDebitStateText = "";
+                    aFinalItems.push(oCreditItem);
+                }
 
-            aItems.splice(iIndex + 1, 0, oNewItem);
+            }.bind(this));
 
-            oModel.setProperty("/items", aItems);
-
-            sap.m.MessageToast.show("Credit line created successfully");
+            return aFinalItems;
         },
 
 
@@ -1024,10 +1240,16 @@ sap.ui.define([
 
         _preparePayloadForPatch: function (oData, iStatus) {
 
+            var that = this;
 
+            // Ensure requestType is set
             oData.requestType = oData.accrualType || oData.requestType;
 
+            // Finance approval logic
             var bFinanceApproval = this._calculateFinanceApproval(oData);
+
+            //APPLY AUTO CREDIT LOGIC
+            var aProcessedItems = this._preparePayloadWithCreditLogic();
 
             var payload = {
                 status: "COMPLETED",
@@ -1038,20 +1260,27 @@ sap.ui.define([
                     nameYourAccrual: oData.nameAccrual || "",
                     requestedBy: oData.requestedBy || "",
                     approvedBy: oData.approvedBy || "",
+                    costCenterOwner: oData.costCenterOwner,
                     accrualCutOffDate: oData.cutoffDate || "",
 
-                    //TYPE OF ACCRUAL — match POST field name exactly
+                    // TYPE OF ACCRUAL
                     TypeofRequest: oData.requestType || oData.accrualType || "",
                     typeOfRequest: oData.requestType || oData.accrualType || "",
                     typeOfAccrual: oData.requestType || oData.accrualType || "",
 
-                    //TYPE OF REQUEST (Accrual / Reclass) — keep consistent
+                    // TYPE OF REQUEST (Accrual / Reclass)
                     Requesttype: oData.typeOfRequest || "",
                     requestType: oData.typeOfRequest || "",
                     typeOfRequest_1: oData.typeOfRequest || "",
 
                     typeOfParty: oData.typeOfParty || "",
                     debitGLType: oData.debitGLType,
+
+                    //Cost Center Owner
+                    CostCenterOwner: (oData.costCenterOwnerEmails || [])
+                        .map(function (o) { return o.email; })
+                        .join(","),
+
                     status: iStatus.toString(),
                     financeApproval: bFinanceApproval,
 
@@ -1061,7 +1290,8 @@ sap.ui.define([
 
                     Lastupdateddate: this._getCurrentDateFormatted(),
 
-                    accrual_Table: oData.items.map(function (item, index) {
+                    //USE PROCESSED ITEMS (WITH AUTO CREDIT)
+                    accrual_Table: aProcessedItems.map(function (item, index) {
 
                         var cdIndicator1 = "";
                         if (item.creditDebit === "Debit") {
@@ -1078,7 +1308,9 @@ sap.ui.define([
                             description: item.description || "",
                             currency: item.currency || "",
                             excludeTax: item.excludeTax ? item.excludeTax.toString() : "",
-                            gLAccountCode: item.glAccount || "",
+                            gLAccountCode: item.glAccount
+                                ? item.glAccount.split(" - ")[0].trim()
+                                : "",
                             creditDebitIndicator: item.creditDebit || "",
                             cDIndicator: cdIndicator1,
                             costCentre: item.costCentre || "",
@@ -1242,6 +1474,7 @@ sap.ui.define([
             var sCompanyCode = oMapping[sSelectedAffiliate] || "";
 
             oModel.setProperty("/companyCode", sCompanyCode);
+            this._applyDebitGLLogic();
 
             var oCompanyCodeInput = this.byId("companyCodeInput");
             if (oCompanyCodeInput) {
@@ -1327,6 +1560,18 @@ sap.ui.define([
             if (sSelectedType) {
                 MessageToast.show(sSelectedType + " type selected.");
             }
+        },
+
+        _validateSupportingDocuments: function () {
+            var oModel = this.getView().getModel();
+            var aDocs = oModel.getProperty("/dmsDocuments");
+
+            if (!aDocs || aDocs.length === 0) {
+                sap.m.MessageBox.error("At least one supporting document is required");
+                return false;
+            }
+
+            return true;
         },
 
         onRequestTypeChange: function (oEvent) {
@@ -1489,6 +1734,15 @@ sap.ui.define([
             oSource.setValueStateText("");
         },
 
+        onCostCenterOwnerChange: function (oEvent) {
+            var oComboBox = oEvent.getSource();
+            var sKey = oComboBox.getSelectedKey();
+            var oModel = this.getView().getModel();
+            oModel.setProperty("/costCenterOwner", sKey);
+            oComboBox.setValueState("None");
+            oComboBox.setValueStateText("");
+        },
+
         onTableFieldChange: function (oEvent) {
             var oSource = oEvent.getSource();
             var oContext = oSource.getBindingContext();
@@ -1509,6 +1763,81 @@ sap.ui.define([
 
             oModel.setProperty(sStatePath, "None");
             oModel.setProperty(sStateTextPath, "");
+        },
+
+        onCostCentreChange: function (oEvent) {
+            var oComboBox = oEvent.getSource();
+            var oContext = oComboBox.getBindingContext();
+            if (!oContext) return;
+
+            var sPath = oContext.getPath();
+            var oModel = this.getView().getModel();
+            var sSelectedCostCentre = oComboBox.getSelectedKey();
+
+            // Clear validation state
+            oModel.setProperty(sPath + "/costCentreState", "None");
+            oModel.setProperty(sPath + "/costCentreStateText", "");
+
+            // Always refresh Cost Center Owner emails regardless of which row changed
+            this._refreshCostCenterOwnerEmails();
+        },
+
+        _refreshCostCenterOwnerEmails: function () {
+            var that = this;
+            var oModel = this.getView().getModel();
+            var aItems = oModel.getProperty("/items") || [];
+
+            // Collect all unique non-empty cost centres across ALL rows
+            var aUniqueCostCentres = [];
+            aItems.forEach(function (item) {
+                var sCC = item.costCentre;
+                if (sCC && aUniqueCostCentres.indexOf(sCC) === -1) {
+                    aUniqueCostCentres.push(sCC);
+                }
+            });
+
+            if (aUniqueCostCentres.length === 0) {
+                oModel.setProperty("/costCenterOwnerEmails", []);
+                oModel.setProperty("/costCenterOwner", "");
+                return;
+            }
+
+            // Fetch emails for all unique cost centres in parallel
+            var aPromises = aUniqueCostCentres.map(function (sCC) {
+                return WorkflowAPI.fetchApproverEmailFromCostCenter(sCC)
+                    .then(function (email) {
+                        return email ? email.trim() : null;
+                    })
+                    .catch(function () { return null; });
+            });
+
+            Promise.all(aPromises).then(function (aEmails) {
+
+                // Deduplicate and remove nulls
+                var aUnique = [];
+                aEmails.forEach(function (email) {
+                    if (email && aUnique.indexOf(email) === -1) {
+                        aUnique.push(email);
+                    }
+                });
+
+                console.log("Cost Center Owner emails collected:", aUnique);
+
+                // IMPORTANT: Clear first to force UI refresh, then set new values
+                oModel.setProperty("/costCenterOwnerEmails", []);
+                oModel.setProperty("/costCenterOwner", "");
+
+                setTimeout(function () {
+                    var aEmailObjects = aUnique.map(function (e) { return { email: e }; });
+                    oModel.setProperty("/costCenterOwnerEmails", aEmailObjects);
+
+                    // Auto-select if only one unique email
+                    if (aUnique.length === 1) {
+                        oModel.setProperty("/costCenterOwner", aUnique[0]);
+                    }
+                    // If multiple, leave blank so user picks
+                }, 100);
+            });
         },
 
 
@@ -1583,10 +1912,7 @@ sap.ui.define([
                         }
                         oComboBox.setBusy(false);
                     })
-                    .catch(function (error) {
-                        console.error("Error loading cost centres:", error);
-                        oComboBox.setBusy(false);
-                    });
+                    .catch(function (error) { console.error("Error loading cost centres:", error); oComboBox.setBusy(false); });
             }
         },
 
@@ -1918,7 +2244,8 @@ sap.ui.define([
                 { id: "Copy_approvedByInput", name: "Approved by" },
                 { id: "Copy_typeOfRequestSelect", name: "Type of request" },
                 { id: "Copy_requestTypeSelect", name: "Type of Accrual" },
-                { id: "Copy_typeOfPartySelect", name: "Type of Party" }
+                { id: "Copy_typeOfPartySelect", name: "Type of Party" },
+                { id: "Copy_costCenterOwnerSelect", name: "Cost Center Owner" }
             ];
 
             var sTypeOfRequest = this.getView().getModel().getProperty("/typeOfRequest");
@@ -2106,6 +2433,9 @@ sap.ui.define([
                         typeOfRequest_1: oData.typeOfRequest || "",
                         Partytype: oData.typeOfParty || "",
                         CSNumber: oData.csNumber || "",
+                        CostCenterOwner: (oData.costCenterOwnerEmails || [])
+                            .map(function (o) { return o.email; })
+                            .join(","),
                         debitGLType: oData.debitGLType,
                         Createddate: this._getCurrentDateFormatted(),  // NEW FIELD
                         Status: iStatus.toString(),
@@ -2126,7 +2456,7 @@ sap.ui.define([
                                 Description: item.description || "",
                                 Currency: item.currency || "",
                                 ExcludeTax: item.excludeTax ? item.excludeTax.toString() : "",
-                                GLAccountCode: item.glAccount || "",
+                                gLAccountCode: item.glAccount ? item.glAccount.split(" - ")[0].trim() : "",
                                 CreditDebitIndicator: item.creditDebit || "",
                                 Cdindicator: cdIndicator,
                                 PurchaseOrderNumber: item.poNumber || "",
@@ -2157,9 +2487,9 @@ sap.ui.define([
             var bHeaderValid = this._validateHeaderFields();
             var bDateValid = this._validateCutoffDate();
             var bTableValid = this._validateTableItems();
+            var bDocValid = this._validateSupportingDocuments();
 
-            if (!bHeaderValid || !bDateValid || !bTableValid) {
-                MessageBox.error("Please fill in all required fields correctly");
+            if (!bHeaderValid || !bDateValid || !bTableValid || !bDocValid) {
                 return;
             }
 
@@ -2234,10 +2564,12 @@ sap.ui.define([
         onSaveAsDraft: function () {
 
             var that = this;
+            var bDocValid = this._validateSupportingDocuments();
 
             if (!this._validateHeaderFields() ||
                 !this._validateCutoffDate() ||
-                !this._validateTableItems()) {
+                !this._validateTableItems() ||
+                !bDocValid) {
 
                 MessageBox.error("Please fill in all required fields correctly");
                 return;
@@ -2472,6 +2804,8 @@ sap.ui.define([
                             currency: "",
                             dmsDocuments: [],
                             dmsFolderId: "",
+                            costCenterOwner: "",
+                            costCenterOwnerEmails: [],
                             items: [
                                 that._createEmptyItem()
                             ],
@@ -2581,6 +2915,8 @@ sap.ui.define([
                 currency: "",
                 dmsDocuments: [],
                 dmsFolderId: "",
+                costCenterOwner: "",
+                costCenterOwnerEmails: [],
                 items: [
                     this._createEmptyItem()
                 ],

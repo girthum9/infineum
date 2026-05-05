@@ -37,6 +37,10 @@
 						<Input id="Copy_requestedByInput" value="{/requestedBy}" placeholder="Enter requester email" required="true" change=".onFieldChange" />
 						<Label id="Copy_IDGenLabel5" text="To be Approved by" required="true" class="redAsterisk" />
 						<Input id="Copy_approvedByInput" value="{/approvedBy}" placeholder="Enter approver email" required="true" change=".onFieldChange" />
+						<Label id="Copy_costCenterOwnerLabel" text="Cost Center Owner" required="true" class="redAsterisk" />
+						<Select id="Copy_costCenterOwnerSelect" selectedKey="{/costCenterOwner}" required="true" change=".onCostCenterOwnerChange" items="{/costCenterOwnerEmails}">
+							<core:Item id="_IDGenItem25" key="{email}" text="{email}" />
+						</Select>
 						<!-- Type of Request (NEW FIELD) -->
 						<Label id="Copy_typeOfRequestLabel" text="Type of Request" required="true" class="redAsterisk" />
 						<Select id="Copy_typeOfRequestSelect" selectedKey="{/typeOfRequest}" change=".onTypeOfRequestChange">
@@ -49,7 +53,7 @@
 						</Select>
 						<Label id="Copy_IDGenLabel6" text="Type of Accrual" required="true" class="redAsterisk" visible="{= ${/typeOfRequest} !== 'Reclass' }" />
 
-						<Select id="Copy_requestTypeSelect" selectedKey="{/requestType}" required="true" visible="{= ${/typeOfRequest} !== 'Reclass' }">
+						<Select id="Copy_requestTypeSelect" selectedKey="{/requestType}" required="true" visible="{= ${/typeOfRequest} !== 'Reclass' }" change=".onAccrualTypeChange">
 							<items>
 								<core:Item id="Copy_IDGenItem" key="" text="Select..." />
 								<core:Item id="Copy_IDGenItem1" key="Commission" text="Commission Accruals" />
@@ -57,17 +61,6 @@
 								<core:Item id="Copy_IDGenItem3" key="Adhoc" text="General Ad-Hoc Accruals" />
 								<core:Item id="Copy_IDGenItem4" key="Technology" text="Technology Accruals" />
 							</items>
-						</Select>
-						<Label id="Copy_IDGenLabel7" text="Debit GL Type" required="true" class="redAsterisk" />
-
-						<Select id="Copy_glaccount" selectedKey="{/glType}" required="true" change=".onGLTypeChangeHeader">
-
-							<items>
-								<core:Item id="_IDGenItem14" key="" text="Select..." />
-								<core:Item id="_IDGenItem15" key="Fixed" text="Fixed Cost" />
-								<core:Item id="_IDGenItem16" key="Variable" text="Variable Cost" />
-							</items>
-
 						</Select>
 						<!-- New Type of Party Field -->
 						<Label id="Copy_typeOfPartyLabel" text="Type of Party" required="true" class="redAsterisk" />
@@ -192,11 +185,11 @@
 										<!-- Exclude Tax -->
 										<Input id="Copy_IDGenInput2" value="{excludeTax}" placeholder="Amount" required="true" valueState="{excludeTaxState}" valueStateText="{excludeTaxStateText}" type="Number" change=".onExcludeTaxChange" />
 										<!-- GL Account -->
-										<Input id="_IDGenInput11" value="{glAccount}" showSuggestion="true" startSuggestion="0" suggestionItems="{path: 'filteredGLAccounts'}">
+										<ComboBox id="Copy_glAccountCombo" selectedKey="{glAccount}" items="{filteredGLAccounts}" showSecondaryValues="true">
 
-											<core:Item id="_IDGenItem10" key="{GLAccount}" text="{GLAccount}" />
-										</Input>
-										<!-- Credit/Debit -->
+											<core:ListItem id="_IDGenListItem2" key="{GLAccount}" text="{GLAccount}" additionalText="{displayText}" />
+
+										</ComboBox>										<!-- Credit/Debit -->
 										<Select id="Copy_IDGenSelect1" selectedKey="{creditDebit}" required="true" valueState="{creditDebitState}" valueStateText="{creditDebitStateText}" change=".onTableFieldChange">
 											<items>
 												<core:Item id="Copy_IDGenItem11" key="" text="Select..." />
@@ -215,7 +208,29 @@
 										<!-- WBS -->
 										<Input id="Copy_IDGenInput7" value="{wbs}" placeholder="WBS" />
 										<!-- Trading Partner -->
-										<Input id="Copy_IDGenInput8" value="{tradingPartner}" placeholder="Trading Partner" />
+										<Select id="Copy_tradingPartnerSelect" selectedKey="{tradingPartner}">
+											<items>
+												<core:Item id="_IDGenItem46" key="" text="Select..." />
+												<core:Item id="_IDGenItem47" key="5625" text="5625" />
+												<core:Item id="_IDGenItem48" key="5630" text="5630" />
+												<core:Item id="_IDGenItem49" key="5603" text="5603" />
+												<core:Item id="_IDGenItem50" key="7131" text="7131" />
+												<core:Item id="_IDGenItem51" key="7114" text="7114" />
+												<core:Item id="_IDGenItem52" key="5631" text="5631" />
+												<core:Item id="_IDGenItem53" key="5624" text="5624" />
+												<core:Item id="_IDGenItem54" key="5629" text="5629" />
+												<core:Item id="_IDGenItem55" key="5628" text="5628" />
+												<core:Item id="_IDGenItem56" key="7238" text="7238" />
+												<core:Item id="_IDGenItem57" key="5626" text="5626" />
+												<core:Item id="_IDGenItem58" key="482" text="482" />
+												<core:Item id="_IDGenItem59" key="5581" text="5581" />
+												<core:Item id="_IDGenItem60" key="5633" text="5633" />
+												<core:Item id="_IDGenItem61" key="5649" text="5649" />
+												<core:Item id="_IDGenItem62" key="5576" text="5576" />
+												<core:Item id="_IDGenItem63" key="5567" text="5567" />
+												<core:Item id="_IDGenItem64" key="5564" text="5564" />
+											</items>
+										</Select>
 										<!-- Sales Order Number - NEW COMBOBOX WITH SEARCH -->
 										<ComboBox id="Copy_salesOrderSelect" selectedKey="{salesOrder}" change=".onSalesOrderChange" loadItems=".onSalesOrderOpen" items="{/salesOrders}">
 											<core:Item id="Copy_IDGenItemSO" key="{SalesOrder}" text="{SalesOrder}" />
@@ -243,11 +258,31 @@
 				</VBox>
 			</VBox>
 
+			<HBox id="_IDGenHBox50" justifyContent="End" width="100%" class="sapUiSmallMarginTop">
+				<VBox id="_IDGenVBox50" alignItems="End">
+
+					<HBox id="_IDGenHBox51">
+						<Text id="_IDGenText200" text="Total (Exclude Tax): " />
+						<Text id="_IDGenText201" text="{path: '/totalExcludeTax', formatter: '.formatter.formatAmount'}" />
+					</HBox>
+
+					<HBox id="_IDGenHBox202">
+						<Text id="_IDGenText203" text="Total (USD): " />
+						<Text id="_IDGenText204" text="{path: '/totalUSD', formatter: '.formatter.formatAmount'}" />
+					</HBox>
+				</VBox>
+			</HBox>
+
 			<!-- Document Attachments Section -->
-			<Panel id="Copy_dmsPanel" headerText="Supporting Documents" class="sapUiSmallMarginTop">
+			<Panel id="Copy_dmsPanel" class="sapUiSmallMarginTop">
+				<headerToolbar>
+					<Toolbar id="_IDGenToolbar1">
+						<Title id="_IDGenTitle6" text="Supporting Documents"/>
+						<Text id="_IDGenText100" text="*" class="redRequired"/>
+					</Toolbar>
+				</headerToolbar>
 				<content>
 					<VBox id="Copy_dmsVBox" class="sapUiSmallMargin">
-
 						<Toolbar id="Copy_dmsToolbar">
 							<ToolbarSpacer id="Copy_dmsToolbarSpacer" />
 							<u:FileUploader id="Copy_dmsFileUploader" buttonText="Upload" buttonOnly="true" iconOnly="false" multiple="true" change=".onDMSFileSelected" style="Emphasized" />

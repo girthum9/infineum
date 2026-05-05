@@ -48,7 +48,7 @@
                         </ComboBox>
 
                         <Label id="_IDGenLabel1" text="Name your accrual" required="true" class="redAsterisk" />
-                        <Input id="nameAccrualInput" value="{/nameAccrual}" placeholder="Enter accrual name" required="true" change=".onFieldChange" />
+                        <Input id="nameAccrualInput" value="{/nameAccrual}" placeholder="Enter accrual name (max 25 chars)" maxLength="25" required="true" change=".onFieldChange" />
 
                         <Label id="_IDGenLabel2" text="Accrual cut-off date (yyyymmdd)" required="true" class="redAsterisk" />
                         <DatePicker id="cutoffDatePicker" value="{/cutoffDate}" displayFormat="yyyyMMdd" valueFormat="yyyyMMdd" placeholder="yyyymmdd (month-end date)" required="true" change=".onFieldChange" />
@@ -62,6 +62,11 @@
 
                         <Label id="_IDGenLabel5" text="To be Approved by" required="true" class="redAsterisk" />
                         <Input id="approvedByInput" value="{/approvedBy}" placeholder="Enter approver email" required="true" change=".onFieldChange" />
+
+                        <Label id="costCenterOwnerLabel" text="Cost Center Owner" required="true" class="redAsterisk" />
+                        <Select id="costCenterOwnerSelect" selectedKey="{/costCenterOwner}" required="true" change=".onCostCenterOwnerChange" items="{/costCenterOwnerEmails}">
+                            <core:Item id="_IDGenItem17" key="{email}" text="{email}" />
+                        </Select>
 
                         <!-- Type of Request (NEW FIELD) -->
                         <!-- Type of Request (NEW FIELD) -->
@@ -77,7 +82,7 @@
 
                         <Label id="_IDGenLabel6" text="Type of Accrual" required="true" class="redAsterisk" visible="{= ${/typeOfRequest} !== 'Reclass' }" />
 
-                        <Select id="accrualTypeSelect" selectedKey="{/accrualType}" required="true" visible="{= ${/typeOfRequest} !== 'Reclass' }">
+                        <Select id="accrualTypeSelect" selectedKey="{/accrualType}" required="true" visible="{= ${/typeOfRequest} !== 'Reclass' }" change=".onAccrualTypeChange">
 
                             <items>
                                 <core:Item id="_IDGenItem1" key="" text="Select..." />
@@ -85,16 +90,6 @@
                                 <core:Item id="_IDGenItem3" key="Rebate" text="Rebate Accruals" />
                                 <core:Item id="_IDGenItem4" key="Adhoc" text="General Ad-Hoc Accruals" />
                                 <core:Item id="_IDGenItem7" key="Technology" text="Technology Accruals" />
-                            </items>
-                        </Select>
-
-                        <Label id="_IDGenLabel7" text="Debit GL Type" required="true" class="redAsterisk" />
-
-                        <Select id="_IDGenSelect" selectedKey="{/glType}" required="true" change=".onGLTypeChangeHeader">
-                            <items>
-                                <core:Item id="_IDGenItem5" key="" text="Select..." />
-                                <core:Item id="_IDGenItem8" key="Fixed" text="Fixed Cost" />
-                                <core:Item id="_IDGenItem9" key="Variable" text="Variable Cost" />
                             </items>
                         </Select>
 
@@ -238,12 +233,12 @@
 
                                         <!-- Exclude Tax -->
                                         <!-- Exclude Tax -->
-                                        <Input id="_IDGenInput2" value="{excludeTax}" placeholder="Amount" required="true" valueState="{excludeTaxState}" valueStateText="{excludeTaxStateText}" type="Number" change="onExcludeTaxChange" />
+                                        <Input id="_IDGenInput2" value="{excludeTax}" type="Number" liveChange=".onAmountChange" change=".onExcludeTaxChange" />
 
                                         <!-- GL Account -->
                                         <Input id="_IDGenInput10" value="{glAccount}" showSuggestion="true" startSuggestion="0" suggestionItems="{path: 'filteredGLAccounts'}">
 
-                                            <core:Item id="_IDGenItem" key="{GLAccount}" text="{GLAccount}" />
+                                            <core:Item id="_IDGenItem" key="{GLAccount}" text="{displayText}" />
                                         </Input>
 
                                         <!-- Credit/Debit -->
@@ -258,22 +253,46 @@
 
 
                                         <!-- Cost Centre - Dropdown -->
-                                        <ComboBox id="costCentreSelect" selectedKey="{costCentre}" change="onCostCentreChange" loadItems=".onCostCentreOpen" placeholder="Select Cost Centre..." width="100%" items="{
+                                        <ComboBox id="costCentreSelect" selectedKey="{costCentre}" enabled="{costCentreEnabled}" change="onCostCentreChange" loadItems=".onCostCentreOpen" placeholder="Select Cost Centre..." width="100%" items="{
                                             path: '/costCentres',
                                             length: 10000
                                         }">
                                             <core:ListItem id="_IDGenListItem" key="{CostCenter}" text="{CostCenter}" />
                                         </ComboBox>
                                         <!-- Internal Order - NEW DROPDOWN -->
-                                        <ComboBox id="internalOrderSelect" selectedKey="{internalOrder}" change=".onTableFieldChange" loadItems=".onInternalOrderOpen" items="{/internalOrders}">
+                                        <ComboBox id="internalOrderSelect" selectedKey="{internalOrder}" enabled="{internalOrderEnabled}" selectionChange="onInternalOrderChange" change=".onTableFieldChange" loadItems=".onInternalOrderOpen" items="{/internalOrders}">
                                             <core:Item id="_IDGenItemIO" key="{OrderNumber}" text="{displayText}" />
                                         </ComboBox>
 
                                         <!-- WBS -->
-                                        <Input id="_IDGenInput7" value="{wbs}" placeholder="WBS" />
+                                        <ComboBox id="_IDGenComboBox" selectedKey="{wbs}" items="{path: '/wbsElements'}" loadItems="onWBSOpen" selectionChange="onWBSChange" enabled="{wbsEnabled}">
+
+                                            <core:Item id="_IDGenItem8" key="{WBSElement}" text="{displayText}" />
+                                        </ComboBox>
 
                                         <!-- Trading Partner -->
-                                        <Input id="_IDGenInput8" value="{tradingPartner}" placeholder="Trading Partner" />
+                                        <Select id="tradingPartnerSelect" selectedKey="{tradingPartner}">
+                                            <items>
+                                                <core:Item id="_IDGenItem27" key="" text="Select..." />
+                                                <core:Item id="_IDGenItem28" key="5625" text="5625" />
+                                                <core:Item id="_IDGenItem29" key="5630" text="5630" />
+                                                <core:Item id="_IDGenItem30" key="5603" text="5603" />
+                                                <core:Item id="_IDGenItem31" key="7131" text="7131" />
+                                                <core:Item id="_IDGenItem32" key="7114" text="7114" />
+                                                <core:Item id="_IDGenItem33" key="5631" text="5631" />
+                                                <core:Item id="_IDGenItem34" key="5624" text="5624" />
+                                                <core:Item id="_IDGenItem35" key="5629" text="5629" />
+                                                <core:Item id="_IDGenItem36" key="5628" text="5628" />
+                                                <core:Item id="_IDGenItem37" key="7238" text="7238" />
+                                                <core:Item id="_IDGenItem38" key="5626" text="5626" />
+                                                <core:Item id="_IDGenItem39" key="482" text="482" />
+                                                <core:Item id="_IDGenItem40" key="5581" text="5581" />
+                                                <core:Item id="_IDGenItem41" key="5633" text="5633" />
+                                                <core:Item id="_IDGenItem42" key="5649" text="5649" />
+                                                <core:Item id="_IDGenItem43" key="5576" text="5576" />
+                                                <core:Item id="_IDGenItem44" key="5567" text="5567" />
+                                            </items>
+                                        </Select>
 
                                         <!-- Sales Order Number - NEW COMBOBOX WITH SEARCH -->
                                         <ComboBox id="salesOrderSelect" selectedKey="{salesOrder}" change=".onSalesOrderChange" loadItems=".onSalesOrderOpen" items="{/salesOrders}">
@@ -292,8 +311,6 @@
                                         <!-- Segment-Sold to Party - AUTO-POPULATED INPUT -->
                                         <Input id="segmentSoldInput" value="{segmentSold}" placeholder="Sold to Party" editable="false" enabled="true" />
 
-                                        <Button id="_IDGenButton5" icon="sap-icon://add" type="Accept" tooltip="Add Credit Line" press=".onAddCreditFromRow" />
-
                                         <!-- Delete Button -->
                                         <Button id="_IDGenButton3" icon="sap-icon://delete" type="Reject" press=".onDeleteRow" />
                                     </cells>
@@ -306,9 +323,29 @@
                         <Text id="_IDGenText22" text="* indicates mandatory fields" />
                     </HBox>
                 </VBox>
+                <HBox id="_IDGenHBox11" justifyContent="End" width="100%" class="sapUiSmallMarginTop">
+                    <VBox id="_IDGenVBox5" alignItems="End">
+
+                        <HBox id="_IDGenHBox12">
+                            <Text id="_IDGenText104" text="Total (Exclude Tax): " />
+                            <Text id="_IDGenText105" text="{path: '/totalExcludeTax', formatter: '.formatter.formatAmount'}" />
+                        </HBox>
+
+                        <HBox id="_IDGenHBox13">
+                            <Text id="_IDGenText106" text="Total (USD): " />
+                            <Text id="_IDGenText107" text="{path: '/totalUSD', formatter: '.formatter.formatAmount'}" />
+                        </HBox>
+
+                    </VBox>
+                </HBox>
                 <!-- Document Attachments Section -->
-                <!-- Document Attachments Section -->
-                <Panel id="dmsPanel" headerText="Supporting Documents" class="sapUiSmallMarginTop">
+                <Panel id="dmsPanel" class="sapUiSmallMarginTop">
+                    <headerToolbar>
+                        <Toolbar id="_IDGenToolbar3">
+                            <Title id="_IDGenTitle4" text="Supporting Documents" />
+                            <Text id="_IDGenText99" text=" * " class="redRequired" />
+                        </Toolbar>
+                    </headerToolbar>
                     <content>
                         <VBox id="dmsVBox" class="sapUiSmallMargin">
                             <Toolbar id="dmsToolbar">

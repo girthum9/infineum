@@ -4,7 +4,7 @@ sap.ui.define([
     "use strict";
 
     var CONFIG = {
-//------------------------  Development--------------------------------------------
+        //------------------------  Development--------------------------------------------
         DEV: {
 
             apiHost: "https://is-apim-dev.test01.apimanagement.eu20.hana.ondemand.com",
@@ -19,7 +19,7 @@ sap.ui.define([
             taskInstancePath: "/public/workflow/rest/v1/task-instances",
 
             businessPartnerPath: "/dev/API_BUSINESS_PARTNER",
-            companyCodePath: "/C_COMPANYCODEVALUEHELPPROJ_CDS/C_CompanyCodeValueHelpProj",
+            companyCodePath: "/API_COMPANYCODE_SRV/A_CompanyCode?$filter=FieldStatusVariant eq 'INF1'",
             glAccountPath: "/C_GLACCOUNTVALUEHELP_CDS/C_GLAccountValueHelp",
             purchaseOrderPath: "/C_PURCHASEORDER_FS_SRV/C_PurchaseOrderFs",
             purchaseOrderItemPath: "/C_PURCHASEORDER_FS_SRV/I_PurchaseOrderItem",
@@ -28,7 +28,9 @@ sap.ui.define([
             internalOrderPath: "/FCO_INTERNAL_ORDER_SRV/InternalOrderSet",
             salesOrderPath: "/API_SALES_ORDER_SRV/A_SalesOrderItem",
             currencyPath: "/UI_CURRENCYEXCHANGERATE/I_Currency?$top=200",
+            currencyExchangeRatePath: "/UI_CURRENCYEXCHANGERATE/C_CurrencyExchangeRateTP",
             segmentPath: "/MD_PRODUCT_OP_SRV/C_ProductObjPgSalesOrder",
+            wbsPath: "/PS_WBSELEMENT_OVW_SRV/I_WBSElementValueHelp",
 
             dashboard: {
                 accrualApiPath: "/ZBTP_HYPERAUTO_SERVICE_SRV/AccrualsSet",
@@ -55,7 +57,7 @@ sap.ui.define([
 
         },
 
-//------------------------  Quality--------------------------------------------
+        //------------------------  Quality--------------------------------------------
         QA: {
 
             apiHost: "https://is-apim-qa.test01.apimanagement.eu20.hana.ondemand.com",
@@ -80,6 +82,7 @@ sap.ui.define([
             salesOrderPath: "/API_SALES_ORDER_SRV/A_SalesOrderItem",
             currencyPath: "/UI_CURRENCYEXCHANGERATE/I_Currency?$top=200",
             segmentPath: "/MD_PRODUCT_OP_SRV/C_ProductObjPgSalesOrder",
+            wbsPath: "/PS_WBSELEMENT_OVW_SRV/I_WBSElementValueHelp",
 
             dashboard: {
                 accrualApiPath: "/ZBTP_HYPERAUTO_SERVICE_SRV/AccrualsSet",
@@ -106,7 +109,7 @@ sap.ui.define([
 
         },
 
-//------------------------  Production --------------------------------------------
+        //------------------------  Production --------------------------------------------
 
         PRD: {
 
@@ -227,6 +230,12 @@ sap.ui.define([
 
         internalOrder: {
             apiEndpoint: joinUrl(env.apiHost, env.internalOrderPath),
+            username: username,
+            password: password
+        },
+
+        wbs: {
+            apiEndpoint: joinUrl(env.apiHost, env.wbsPath),
             username: username,
             password: password
         },
