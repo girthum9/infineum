@@ -6,11 +6,11 @@
 	xmlns:l="sap.ui.layout"
 	xmlns:u="sap.ui.unified"
 	xmlns:html="http://www.w3.org/1999/xhtml">
-	<Page id="Copy_page" title="Accrual/Reclass request form" showHeader="true" showFooter="true">
+	<Page id="Copy_page" title="Accrual request form" showHeader="true" showFooter="true">
 		<customHeader>
 			<Bar id="Copy_IDGenBar">
 				<contentMiddle>
-					<Title id="Copy_IDGenTitle" text="Accrual/Reclass request form" level="H1" />
+					<Title id="Copy_IDGenTitle" text="Accrual request form" level="H1" />
 				</contentMiddle>
 			</Bar>
 		</customHeader>
@@ -36,8 +36,12 @@
 						<Label id="Copy_IDGenLabel4" text="Requested by" required="true" class="redAsterisk" />
 						<Input id="Copy_requestedByInput" value="{/requestedBy}" placeholder="Enter requester email" required="true" change=".onFieldChange" />
 						<Label id="Copy_IDGenLabel5" text="To be Approved by" required="true" class="redAsterisk" />
-						<Input id="Copy_approvedByInput" value="{/approvedBy}" placeholder="Enter approver email" required="true" change=".onFieldChange" />
-						<Label id="Copy_costCenterOwnerLabel" text="Cost Center Owner" required="true" class="redAsterisk" />
+						<ComboBox id="Copy_approvedByInput" value="{/approvedBy}" selectedKey="{/approvedBy}" required="true" editable="true" change=".onApprovedByChange" items="{/approvedByEmails}">
+
+							<core:Item id="_IDGenItem9" key="{email}" text="{email}" />
+
+						</ComboBox>
+						<Label id="Copy_costCenterOwnerLabel" text="Responsible Person" required="false" />
 						<Select id="Copy_costCenterOwnerSelect" selectedKey="{/costCenterOwner}" required="true" change=".onCostCenterOwnerChange" items="{/costCenterOwnerEmails}">
 							<core:Item id="_IDGenItem25" key="{email}" text="{email}" />
 						</Select>
@@ -48,7 +52,7 @@
 							<items>
 								<core:Item id="_IDGenItem22" key="" text="Select..." />
 								<core:Item id="_IDGenItem23" key="Accrual" text="Accrual" />
-								<core:Item id="_IDGenItem24" key="Reclass" text="Reclass" />
+								<!-- <core:Item id="_IDGenItem24" key="Reclass" text="Reclass" /> -->
 							</items>
 						</Select>
 						<Label id="Copy_IDGenLabel6" text="Type of Accrual" required="true" class="redAsterisk" visible="{= ${/typeOfRequest} !== 'Reclass' }" />
@@ -140,6 +144,13 @@
 								<Column id="Copy_IDGenColumn10" width="11rem">
 									<Text id="Copy_IDGenText10" text="Trading Partner" />
 								</Column>
+								<Column id="_IDGenColumn_MatNum1" width="11rem">
+									<Text id="_IDGenText1083" text="Material Number" />
+								</Column>
+								<Column id="_IDGenColumn_Country3" width="11rem">
+									<Text id="_IDGenText1093" text="Country/Region Key" />
+								</Column>
+
 								<Column id="Copy_IDGenColumn11" width="11rem">
 									<Text id="Copy_IDGenText11" text="Sales Order Number" />
 								</Column>
@@ -198,15 +209,19 @@
 											</items>
 										</Select>
 										<!-- Cost Centre - Dropdown -->
-										<ComboBox id="Copy_costCentreSelect" selectedKey="{costCentre}" change=".onTableFieldChange" enabled="{= !${internalOrder} &amp;&amp; !${wbs} }" loadItems=".onCostCentreOpen" placeholder="Select Cost Centre..." width="100%" items="{ path: '/costCentres', length: 10000 }">
+										<ComboBox id="Copy_costCentreSelect" selectedKey="{costCentre}" selectionChange=".onCostCentreChange" enabled="{= !${internalOrder} &amp;&amp; !${wbs} }" loadItems=".onCostCentreOpen" placeholder="Select Cost Centre..." width="100%" items="{ path: '/costCentres', length: 10000 }">
 											<core:ListItem id="Copy_IDGenListItem" key="{CostCenter}" text="{CostCenter}" />
 										</ComboBox>
 										<!-- Internal Order - NEW DROPDOWN -->
-										<ComboBox id="Copy_internalOrderSelect" selectedKey="{internalOrder}" change=".onTableFieldChange" enabled="{= !${costCentre} &amp;&amp; !${wbs} }" loadItems=".onInternalOrderOpen" items="{/internalOrders}">
+										<ComboBox id="Copy_internalOrderSelect" selectedKey="{internalOrder}" selectionChange=".onInternalOrderChange" enabled="{= !${costCentre} &amp;&amp; !${wbs} }" loadItems=".onInternalOrderOpen" items="{/internalOrders}">
 											<core:Item id="Copy_IDGenItemIO" key="{OrderNumber}" text="{displayText}" />
 										</ComboBox>
 										<!-- WBS -->
-										<Input id="Copy_IDGenInput7" value="{wbs}" placeholder="WBS" change=".onCostObjectChange" enabled="{= !${costCentre} &amp;&amp; !${internalOrder} }"/>
+										<ComboBox id="Copy_wbsSelect" selectedKey="{wbs}" selectionChange=".onWBSChange" loadItems=".onWBSOpen" enabled="{= !${costCentre} &amp;&amp; !${internalOrder} }" items="{/wbsElements}">
+
+											<core:Item id="_IDGenItem10" key="{WBSElement}" text="{displayText}" />
+
+										</ComboBox>
 										<!-- Trading Partner -->
 										<Select id="Copy_tradingPartnerSelect" selectedKey="{tradingPartner}">
 											<items>
@@ -231,6 +246,8 @@
 												<core:Item id="_IDGenItem64" key="5564" text="5564" />
 											</items>
 										</Select>
+										<Input id="materialNumberInput1" value="{materialNumber}" placeholder="Material Number" editable="false" enabled="true" />
+										<Input id="countryRegionKeyInput1" value="{countryRegionKey}" placeholder="Country/Region Key" change=".onTableFieldChange" />
 										<!-- Sales Order Number - NEW COMBOBOX WITH SEARCH -->
 										<ComboBox id="Copy_salesOrderSelect" selectedKey="{salesOrder}" change=".onSalesOrderChange" loadItems=".onSalesOrderOpen" items="{/salesOrders}">
 											<core:Item id="Copy_IDGenItemSO" key="{SalesOrder}" text="{SalesOrder}" />

@@ -32,6 +32,8 @@ sap.ui.define([
 
         _wbsConfig: AppConfig.wbs,
 
+        _responsibleEmailConfig: AppConfig.responsibleEmail,
+
         _salesOrderConfig: AppConfig.salesOrder,
 
         _currencyConfig: AppConfig.currency,
@@ -515,6 +517,7 @@ sap.ui.define([
                     return data.d.results.map(function (item) {
                         return {
                             WBSElement: item.WBSElement,
+                            ResponsiblePerson: item.ResponsiblePerson || "",
                             displayText: item.WBSElement
                         };
                     });
@@ -560,7 +563,54 @@ sap.ui.define([
                 })
                 .catch(function () { return null; });
         },
+        
+        fetchResponsibleEmail: function (payload) {
 
+    var cfg = this._responsibleEmailConfig;
+
+    return fetch(cfg.apiEndpoint, {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json"
+        },
+        body: JSON.stringify(payload)
+    })
+        .then(function (response) {
+
+            if (!response.ok) {
+                throw new Error(
+                    "GET_ResponsibleEmail failed: " + response.status
+                );
+            }
+
+            return response.text();
+        })
+        .then(function (responseText) {
+
+            // Parse XML response
+            var parser = new DOMParser();
+            var xmlDoc = parser.parseFromString(responseText, "application/xml");
+
+            var emailNode =
+                xmlDoc.getElementsByTagNameNS(
+                    "http://schemas.microsoft.com/ado/2007/08/dataservices",
+                    "Responsibleemail"
+                )[0] ||
+                xmlDoc.getElementsByTagName("d:Responsibleemail")[0] ||
+                xmlDoc.getElementsByTagName("Responsibleemail")[0];
+
+            if (emailNode && emailNode.textContent) {
+                return emailNode.textContent.trim();
+            }
+
+            console.warn(
+                "Responsibleemail not found in response",
+                responseText
+            );
+
+            return null;
+        });
+},
         fetchInternalOrders: function (companyCode) {
             if (!companyCode) return Promise.resolve([]);
             var url = this._internalOrderConfig.apiEndpoint + "?$filter=CompanyCode eq '" + companyCode + "'";
@@ -578,6 +628,7 @@ sap.ui.define([
                         return {
                             OrderNumber: io.OrderNumber || "",
                             OrderDescription: io.OrderDescription || "",
+                            RespPersonID: io.RespPersonID || "",
                             displayText: (io.OrderNumber || "") + (io.OrderDescription ? " - " + io.OrderDescription : "")
                         };
                     });
@@ -600,33 +651,34 @@ sap.ui.define([
                     return data.d.results.map(function (po) { return { PurchaseOrder: po.PurchaseOrder || "" }; });
                 });
         },
-
-        fetchPurchaseOrderItems: function (purchaseOrder) {
-            if (!purchaseOrder) return Promise.resolve([]);
-            var url = this._purchaseOrderItemConfig.apiEndpoint + "?$filter=PurchaseOrder eq '" + purchaseOrder + "'";
-            return fetch(url, {
-                method: "GET",
-                headers: {
-                    "Authorization": this._getAuthHeader(this._purchaseOrderItemConfig.username, this._purchaseOrderItemConfig.password),
-                    "Accept": "application/json"
-                }
-            })
-                .then(function (r) { if (!r.ok) throw new Error("Failed: " + r.status); return r.json(); })
-                .then(function (data) {
-                    if (!data.d || !data.d.results) return [];
-                    return data.d.results.map(function (item) {
-                        return {
-                            PurchaseOrderItem: item.PurchaseOrderItem || "",
-                            PurchaseOrderItemText: item.PurchaseOrderItemText || "",
-                            NetAmount: item.NetAmount || "0.00",
-                            displayText: (item.PurchaseOrderItem || "") + (item.PurchaseOrderItemText ? " - " + item.PurchaseOrderItemText : "")
-                        };
-                    });
-                });
-        },
+fetchPurchaseOrderItems: function (purchaseOrder) {
+    if (!purchaseOrder) return Promise.resolve([]);
+    var url = this._purchaseOrderItemConfig.apiEndpoint + "?$filter=PurchaseOrder eq '" + purchaseOrder + "'";
+    return fetch(url, {
+        method: "GET",
+        headers: {
+            "Authorization": this._getAuthHeader(this._purchaseOrderItemConfig.username, this._purchaseOrderItemConfig.password),
+            "Accept": "application/json"
+        }
+    })
+        .then(function (r) { if (!r.ok) throw new Error("Failed: " + r.status); return r.json(); })
+        .then(function (data) {
+            if (!data.d || !data.d.results) return [];
+            return data.d.results.map(function (item) {
+                return {
+                    PurchaseOrderItem: item.PurchaseOrderItem || "",
+                    PurchaseOrderItemText: item.PurchaseOrderItemText || "",
+                    NetAmount: item.NetAmount || "0.00",
+                    // ✅ NEW
+                    Material: item.Material || "",
+                    displayText: (item.PurchaseOrderItem || "") + (item.PurchaseOrderItemText ? " - " + item.PurchaseOrderItemText : "")
+                };
+            });
+        });
+},
 
         fetchSalesOrders: function () {
-            return fetch(this._salesOrderConfig.apiEndpoint, {
+            return fetch(this._salesOrderConfig.apiEndpoint + "?$select=SalesOrder&$top=100", {
                 method: "GET",
                 headers: {
                     "Authorization": this._getAuthHeader(this._salesOrderConfig.username, this._salesOrderConfig.password),
@@ -710,34 +762,102 @@ sap.ui.define([
         },
 
         fetchBusinessPartners: function (searchTerm, typeOfParty) {
-            if (!typeOfParty) return Promise.resolve([]);
+
+            if (!typeOfParty) {
+                return Promise.resolve([]);
+            }
+
             var endpoint = this.getBusinessPartnerEndpoint(typeOfParty);
             var filter = "";
 
             if (typeOfParty === "Customer") {
-                filter = searchTerm ? "?$filter=substringof('" + encodeURIComponent(searchTerm) + "',CustomerName)&$top=20" : "?$top=20";
+
+                filter = searchTerm
+                    ? "?$filter=substringof('" + encodeURIComponent(searchTerm) + "',CustomerName)&$top=20"
+                    : "?$top=20";
+
             } else if (typeOfParty === "Supplier") {
-                filter = searchTerm ? "?$filter=substringof('" + encodeURIComponent(searchTerm) + "',SupplierName)&$top=20" : "?$top=20";
+
+                filter = searchTerm
+                    ? "?$filter=substringof('" + encodeURIComponent(searchTerm) + "',SupplierName)&$top=20"
+                    : "?$top=20";
+
             } else {
-                filter = searchTerm ? "?$filter=substringof('" + encodeURIComponent(searchTerm) + "',BusinessPartnerName)&$top=20" : "?$top=20";
+
+                filter = searchTerm
+                    ? "?$filter=substringof('" + encodeURIComponent(searchTerm) + "',BusinessPartnerName)&$top=20"
+                    : "?$top=20";
+
             }
 
             return fetch(endpoint + filter, {
+
                 method: "GET",
+
                 headers: {
-                    "Authorization": this._getAuthHeader(this._businessPartnerConfig.username, this._businessPartnerConfig.password),
+                    "Authorization": this._getAuthHeader(
+                        this._businessPartnerConfig.username,
+                        this._businessPartnerConfig.password
+                    ),
                     "Accept": "application/json"
                 }
+
             })
-                .then(function (r) { return r.ok ? r.json() : { d: { results: [] } }; })
+
+                .then(function (r) {
+
+                    return r.ok
+                        ? r.json()
+                        : { d: { results: [] } };
+
+                })
+
                 .then(function (data) {
-                    if (!data.d || !data.d.results) return [];
+
+                    if (!data.d || !data.d.results) {
+                        return [];
+                    }
+
                     return data.d.results.map(function (p) {
-                        if (typeOfParty === "Customer") return { key: p.Customer || "", name: p.CustomerName || "", fullText: (p.Customer || "") + " - " + (p.CustomerName || "") };
-                        if (typeOfParty === "Supplier") return { key: p.Supplier || "", name: p.SupplierName || "", fullText: (p.Supplier || "") + " - " + (p.SupplierName || "") };
-                        return { key: p.BusinessPartner || "", name: p.BusinessPartnerName || "", fullText: (p.BusinessPartner || "") + " - " + (p.BusinessPartnerName || "") };
+
+                        // CUSTOMER
+                        if (typeOfParty === "Customer") {
+
+                            return {
+                                key: p.Customer || "",
+                                name: p.CustomerName || "",
+                                fullText: (p.Customer || "") + " - " + (p.CustomerName || "")
+                            };
+
+                        }
+
+                        // SUPPLIER
+                        if (typeOfParty === "Supplier") {
+
+                            return {
+                                key: p.Supplier || "",
+                                name: p.SupplierName || "",
+                                fullText: (p.Supplier || "") + " - " + (p.SupplierName || ""),
+
+                                // IMPORTANT
+                                SupplierAccountGroup: p.SupplierAccountGroup || ""
+                            };
+
+                        }
+
+                        // BUSINESS PARTNER
+                        return {
+
+                            key: p.BusinessPartner || "",
+                            name: p.BusinessPartnerName || "",
+                            fullText: (p.BusinessPartner || "") + " - " + (p.BusinessPartnerName || "")
+
+                        };
+
                     });
+
                 });
+
         },
 
 

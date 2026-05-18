@@ -21,6 +21,7 @@ sap.ui.define([
                 companyCode: "",
                 requestedBy: sEmail || "",
                 approvedBy: "",
+                approvedByEmails: [],
                 typeOfRequest: "",
                 accrualType: "",
                 requestType: "",
@@ -104,31 +105,45 @@ sap.ui.define([
         _getFinanceManagerEmail: function (companyCode) {
 
             var map = {
-                "BRC1": "Jorge.Nascimento@Infineum.com",
-                "USC1": "Sophie.Paterson@Infineum.com",
 
-                "DEC1": "Gordana.Sedic@Infineum.com",
-                "DEC2": "Gordana.Sedic@Infineum.com",
+                "BRC1": ["Jorge.Nascimento@Infineum.com"],
+                "USC1": ["Sophie.Paterson@Infineum.com"],
 
-                "NLC1": "Helen.Summerville@Infineum.com",
-                "NLC2": "Helen.Summerville@Infineum.com",
-                "GBC1": "Helen.Summerville@Infineum.com",
-                "GBC2": "Helen.Summerville@Infineum.com",
-                "FRC1": "Helen.Summerville@Infineum.com",
-                "ESC1": "Helen.Summerville@Infineum.com",
+                "DEC1": ["Gordana.Sedic@Infineum.com"],
+                "DEC2": ["Gordana.Sedic@Infineum.com"],
 
-                "ITC1": "Stefania.Torselli@Infineum.com",
-                "INC1": "Anagha.Venkitaraman@Infineum.com",
+                "NLC1": ["Helen.Summerville@Infineum.com"],
+                "NLC2": ["Helen.Summerville@Infineum.com"],
+                "GBC1": ["Helen.Summerville@Infineum.com"],
+                "GBC2": ["Helen.Summerville@Infineum.com"],
+                "FRC1": ["Helen.Summerville@Infineum.com"],
+                "ESC1": ["Helen.Summerville@Infineum.com"],
 
-                "SGC1": "KiatLi.Lee@Infineum.com",
-                "JPC1": "KiatLi.Lee@Infineum.com",
-                "KRC1": "KiatLi.Lee@Infineum.com",
+                "ITC1": ["Stefania.Torselli@Infineum.com"],
 
-                "CNC1": "Xuan.Li@Infineum.com",
-                "CNC2": "Xuan.Li@Infineum.com"
+                "INC1": ["Anagha.Venkitaraman@Infineum.com"],
+
+                // UPDATED
+                "SGC1": [
+                    "KiatLi.Lee@Infineum.com",
+                    "Valerie.Ong@Infineum.com"
+                ],
+
+                "JPC1": [
+                    "KiatLi.Lee@Infineum.com",
+                    "Valerie.Ong@Infineum.com"
+                ],
+
+                "KRC1": [
+                    "KiatLi.Lee@Infineum.com",
+                    "Valerie.Ong@Infineum.com"
+                ],
+
+                "CNC1": ["Xuan.Li@Infineum.com"],
+                "CNC2": ["Xuan.Li@Infineum.com"]
             };
 
-            return map[companyCode] || "";
+            return map[companyCode] || [];
         },
 
 
@@ -584,7 +599,7 @@ sap.ui.define([
                             currency: getValue(item, "currency", "Currency"),
                             excludeTax: getValue(item, "excludeTax", "ExcludeTax"),
                             glAccount: getValue(item, "gLAccountCode", "GLAccountCode"),
-                            creditDebit: "Debit", // ✅ force debit in UI
+                            creditDebit: "Debit",
                             poNumber: getValue(item, "purchaseOrderNumber", "PurchaseOrderNumber"),
                             poLineItem: getValue(item, "purchaseOrderLineItem", "PurchaseOrderLineItem"),
                             costCentre: getValue(item, "costCentre", "CostCentre"),
@@ -596,6 +611,10 @@ sap.ui.define([
                             SegmentProduct: getValue(item, "segmentProduct", "SegmentProduct"),
                             segmentShip: getValue(item, "segmentShiptoParty", "SegmentShiptoParty"),
                             segmentSold: getValue(item, "segmentSoldtoParty", "SegmentSoldtoParty"),
+
+                            // ✅ NEW
+                            materialNumber: getValue(item, "materialNumber", "MaterialNumber"),
+                            countryRegionKey: getValue(item, "countryRegionKey", "Country_Regionkey"),
 
                             purchaseOrders: [],
                             purchaseOrderItems: [],
@@ -843,6 +862,8 @@ sap.ui.define([
                         oModel.setProperty(sPath + "/poLineItem", firstItem.PurchaseOrderItem);
                         oModel.setProperty(sPath + "/description", firstItem.PurchaseOrderItemText);
                         oModel.setProperty(sPath + "/excludeTax", firstItem.NetAmount);
+                        // ✅ NEW: map Material
+                        oModel.setProperty(sPath + "/materialNumber", firstItem.Material || "");
                         that._convertToUSD();
                         oModel.setProperty(sPath + "/poNetAmount", firstItem.NetAmount);
                         that._validateExcludeTaxValue(sPath, firstItem.NetAmount);
@@ -881,6 +902,8 @@ sap.ui.define([
                     oModel.setProperty(sPath + "/excludeTax", selectedPOItem.NetAmount);
                     this._convertToUSD();
                     oModel.setProperty(sPath + "/poNetAmount", selectedPOItem.NetAmount);
+                    // ✅ NEW: map Material
+                    oModel.setProperty(sPath + "/materialNumber", selectedPOItem.Material || "");
                     this._validateExcludeTaxValue(sPath, selectedPOItem.NetAmount);
                     MessageToast.show("Description and Amount updated");
                 }
@@ -960,28 +983,34 @@ sap.ui.define([
             oModel.setProperty(sPath + "/" + sFieldName + "State", "None");
             oModel.setProperty(sPath + "/" + sFieldName + "StateText", "");
 
-            this._refreshCostCenterOwnerEmails();
+            this._refreshResponsiblePersonEmails();
             this._updateAccountAssignmentState(sPath);
         },
 
         onInternalOrderChange: function (oEvent) {
 
             var oContext = oEvent.getSource().getBindingContext();
+
             if (!oContext) return;
 
             var sPath = oContext.getPath();
 
             this._updateAccountAssignmentState(sPath);
+
+            this._refreshResponsiblePersonEmails();
         },
 
         onWBSChange: function (oEvent) {
 
             var oContext = oEvent.getSource().getBindingContext();
+
             if (!oContext) return;
 
             var sPath = oContext.getPath();
 
             this._updateAccountAssignmentState(sPath);
+
+            this._refreshResponsiblePersonEmails();
         },
 
         //WBS
@@ -1017,83 +1046,206 @@ sap.ui.define([
             var oModel = this.getView().getModel();
 
             var totalUSD = oModel.getProperty("/totalUSD") || 0;
+
             var companyCode = oModel.getProperty("/companyCode");
 
-            if (!companyCode || !totalUSD) return;
-
-            var threshold = this._getThreshold(companyCode);
-
-            //BELOW THRESHOLD
-            if (totalUSD < threshold) {
-                oModel.setProperty("/approvedBy", "");
+            if (!companyCode || !totalUSD) {
                 return;
             }
 
-            //ABOVE THRESHOLD
-            var email = this._getFinanceManagerEmail(companyCode);
+            var threshold = this._getThreshold(companyCode);
 
-            if (email) {
-                oModel.setProperty("/approvedBy", email);
+            // BELOW THRESHOLD
+            if (totalUSD < threshold) {
+
+                oModel.setProperty("/approvedBy", "");
+
+                oModel.setProperty("/approvedByEmails", []);
+
+                return;
+            }
+
+            // ABOVE THRESHOLD
+            var aEmails = this._getFinanceManagerEmail(companyCode);
+
+            if (aEmails && aEmails.length > 0) {
+
+                var aEmailObjects = aEmails.map(function (email) {
+                    return {
+                        email: email
+                    };
+                });
+
+                oModel.setProperty("/approvedByEmails", aEmailObjects);
+
+                // Auto select first approver
+                oModel.setProperty("/approvedBy", aEmails[0]);
             }
         },
 
 
-        _refreshCostCenterOwnerEmails: function () {
-            var that = this;
+        _refreshResponsiblePersonEmails: function () {
+
             var oModel = this.getView().getModel();
             var aItems = oModel.getProperty("/items") || [];
 
-            // Collect all unique non-empty cost centres across ALL rows
-            var aUniqueCostCentres = [];
+            var aPromises = [];
+
+            var aCollectedEmails = [];
+
+            var aCostCentersDone = [];
+            var aInternalOrdersDone = [];
+            var aWBSDone = [];
+
+            var aInternalOrders = oModel.getProperty("/internalOrders") || [];
+            var aWBS = oModel.getProperty("/wbsElements") || [];
+
             aItems.forEach(function (item) {
-                var sCC = item.costCentre;
-                if (sCC && aUniqueCostCentres.indexOf(sCC) === -1) {
-                    aUniqueCostCentres.push(sCC);
+
+                // =========================
+                // COST CENTER
+                // =========================
+                if (item.costCentre &&
+                    aCostCentersDone.indexOf(item.costCentre) === -1) {
+
+                    aCostCentersDone.push(item.costCentre);
+
+                    aPromises.push(
+
+                        WorkflowAPI.fetchApproverEmailFromCostCenter(item.costCentre)
+                            .then(function (email) {
+
+                                if (email) {
+                                    aCollectedEmails.push(email.trim());
+                                }
+
+                            })
+                            .catch(function () { })
+
+                    );
                 }
-            });
 
-            if (aUniqueCostCentres.length === 0) {
-                oModel.setProperty("/costCenterOwnerEmails", []);
-                oModel.setProperty("/costCenterOwner", "");
-                return;
-            }
+                // =========================
+                // INTERNAL ORDER
+                // =========================
+                if (item.internalOrder &&
+                    aInternalOrdersDone.indexOf(item.internalOrder) === -1) {
 
-            // Fetch emails for all unique cost centres in parallel
-            var aPromises = aUniqueCostCentres.map(function (sCC) {
-                return WorkflowAPI.fetchApproverEmailFromCostCenter(sCC)
-                    .then(function (email) {
-                        return email ? email.trim() : null;
-                    })
-                    .catch(function () { return null; });
-            });
+                    aInternalOrdersDone.push(item.internalOrder);
 
-            Promise.all(aPromises).then(function (aEmails) {
+                    var oOrder = aInternalOrders.find(function (ord) {
+                        return ord.OrderNumber === item.internalOrder;
+                    });
 
-                // Deduplicate and remove nulls
-                var aUnique = [];
-                aEmails.forEach(function (email) {
-                    if (email && aUnique.indexOf(email) === -1) {
-                        aUnique.push(email);
+                    if (oOrder && oOrder.RespPersonID) {
+
+                        aPromises.push(
+
+                            WorkflowAPI.fetchResponsibleEmail({
+                                Resppersonid: oOrder.RespPersonID
+                            })
+                                .then(function (email) {
+
+                                    if (email) {
+                                        aCollectedEmails.push(email.trim());
+                                    }
+
+                                })
+                                .catch(function () { })
+
+                        );
                     }
-                });
+                }
 
-                console.log("Cost Center Owner emails collected:", aUnique);
+                // =========================
+                // WBS
+                // =========================
+                if (item.wbs &&
+                    aWBSDone.indexOf(item.wbs) === -1) {
 
-                // IMPORTANT: Clear first to force UI refresh, then set new values
-                oModel.setProperty("/costCenterOwnerEmails", []);
-                oModel.setProperty("/costCenterOwner", "");
+                    aWBSDone.push(item.wbs);
 
-                setTimeout(function () {
-                    var aEmailObjects = aUnique.map(function (e) { return { email: e }; });
+                    var oWBS = aWBS.find(function (w) {
+                        return w.WBSElement === item.wbs;
+                    });
+
+                    if (oWBS && oWBS.ResponsiblePerson) {
+
+                        aPromises.push(
+
+                            WorkflowAPI.fetchResponsibleEmail({
+                                Responsibleperson: oWBS.ResponsiblePerson
+                            })
+                                .then(function (email) {
+
+                                    if (email) {
+                                        aCollectedEmails.push(email.trim());
+                                    }
+
+                                })
+                                .catch(function () { })
+
+                        );
+                    }
+                }
+
+            });
+
+            Promise.all(aPromises)
+                .then(function () {
+
+                    // =========================
+                    // REMOVE DUPLICATES
+                    // =========================
+                    var aUniqueEmails = [];
+
+                    aCollectedEmails.forEach(function (email) {
+
+                        if (email &&
+                            aUniqueEmails.indexOf(email) === -1) {
+
+                            aUniqueEmails.push(email);
+
+                        }
+
+                    });
+
+                    console.log("Final Responsible Emails:", aUniqueEmails);
+
+                    var aEmailObjects = aUniqueEmails.map(function (email) {
+
+                        return {
+                            email: email
+                        };
+
+                    });
+
                     oModel.setProperty("/costCenterOwnerEmails", aEmailObjects);
 
-                    // Auto-select if only one unique email
-                    if (aUnique.length === 1) {
-                        oModel.setProperty("/costCenterOwner", aUnique[0]);
+                    // =========================
+                    // AUTO SELECT
+                    // =========================
+                    if (aUniqueEmails.length === 1) {
+
+                        oModel.setProperty(
+                            "/costCenterOwner",
+                            aUniqueEmails[0]
+                        );
+
+                    } else {
+
+                        var sExisting = oModel.getProperty("/costCenterOwner");
+
+                        if (aUniqueEmails.indexOf(sExisting) === -1) {
+
+                            oModel.setProperty("/costCenterOwner", "");
+
+                        }
+
                     }
-                    // If multiple, leave blank so user picks
-                }, 100);
-            });
+
+                });
+
         },
 
 
@@ -1136,6 +1288,15 @@ sap.ui.define([
                 .finally(function () { oComboBox.setBusy(false); });
         },
 
+        onApprovedByChange: function (oEvent) {
+
+            var sValue = oEvent.getSource().getValue();
+
+            this.getView()
+                .getModel()
+                .setProperty("/approvedBy", sValue);
+        },
+
         onSalesOrderChange: function (oEvent) {
             var that = this;
             var oComboBox = oEvent.getSource();
@@ -1175,28 +1336,76 @@ sap.ui.define([
         // ─── SUPPLIER SUGGEST ────────────────────────────────────────────────────────
 
         onSupplierSuggest: function (oEvent) {
+
             var sSuggestValue = oEvent.getParameter("suggestValue");
             var oSource = oEvent.getSource();
             var oModel = this.getView().getModel();
             var sTypeOfParty = oModel.getProperty("/typeOfParty");
 
-            if (!sTypeOfParty) { MessageBox.warning("Please select Type of Party first"); return; }
-            if (!sSuggestValue || sSuggestValue.length <= 0) return;
+            if (!sTypeOfParty) {
+                MessageBox.warning("Please select Type of Party first");
+                return;
+            }
+
+            if (!sSuggestValue || sSuggestValue.length <= 0) {
+                return;
+            }
 
             oSource.setBusy(true);
 
             WorkflowAPI.fetchBusinessPartners(sSuggestValue, sTypeOfParty)
+
                 .then(function (aPartners) {
+
+                    // Supplier Account Group filter
+                    if (sTypeOfParty === "Supplier") {
+
+                        var aAllowedSupplierGroups = [
+                            "GENL",
+                            "ZDPE",
+                            "ZDPV",
+                            "ZEXV",
+                            "ZTAX",
+                            "ZPI",
+                            "ZLOG"
+                        ];
+
+                        aPartners = aPartners.filter(function (partner) {
+
+                            return aAllowedSupplierGroups.includes(
+                                partner.SupplierAccountGroup
+                            );
+
+                        });
+
+                    }
+
                     oSource.destroySuggestionItems();
+
                     aPartners.forEach(function (partner) {
-                        oSource.addSuggestionItem(new sap.ui.core.Item({
-                            key: partner.key,
-                            text: partner.fullText
-                        }));
+
+                        oSource.addSuggestionItem(
+                            new sap.ui.core.Item({
+                                key: partner.key,
+                                text: partner.fullText
+                            })
+                        );
+
                     });
+
                 })
-                .catch(function (error) { console.error("Error in suggestion:", error); })
-                .finally(function () { oSource.setBusy(false); });
+
+                .catch(function (error) {
+
+                    console.error("Error in suggestion:", error);
+
+                })
+
+                .finally(function () {
+
+                    oSource.setBusy(false);
+
+                });
         },
 
         onSupplierSuggestionSelected: function (oEvent) {
@@ -1430,6 +1639,7 @@ sap.ui.define([
                     { GLAccount: "63600001", displayText: "63600001 - Technology-Research & Development Consulting" },
                     { GLAccount: "63600005", displayText: "63600005 - Technology-Bench Testing" },
                     { GLAccount: "63600004", displayText: "63600004 - Technology-Engine Testing" },
+                    { GLAccount: "63600007", displayText: "63600007 - Technology-Other Testing" },
                     { GLAccount: "63600008", displayText: "63600008 - Technology-Bill-Out" },
                     { GLAccount: "63600006", displayText: "63600006 - Technology-Field Testing" },
                     { GLAccount: "40000002", displayText: "40000002 - Sales Revenue Non-Group-Tech Fund" },
@@ -1590,26 +1800,41 @@ sap.ui.define([
         },
 
         onDeleteRow: function (oEvent) {
+
             var that = this;
+
             var oModel = this.getView().getModel();
+
             var aItems = oModel.getProperty("/items");
 
             if (aItems.length === 1) {
+
                 MessageBox.warning("At least one row is required.");
+
                 return;
             }
 
             var oButton = oEvent.getSource();
+
             var sPath = oButton.getBindingContext().getPath();
+
             var iIndex = parseInt(sPath.split("/").pop());
 
             MessageBox.confirm("Are you sure you want to delete this row?", {
+
                 onClose: function (sAction) {
+
                     if (sAction === MessageBox.Action.OK) {
 
+                        // DELETE ROW
                         aItems.splice(iIndex, 1);
+
                         oModel.setProperty("/items", aItems);
 
+                        // REFRESH RESPONSIBLE PERSON EMAILS
+                        that._refreshResponsiblePersonEmails();
+
+                        // RECALCULATE USD
                         that._convertToUSD();
 
                         MessageToast.show("Row deleted");
@@ -1624,33 +1849,59 @@ sap.ui.define([
         },
 
         onDeleteSelected: function () {
+
             var that = this;
+
             var oTable = this.byId("itemsTable");
+
             var aSelectedItems = oTable.getSelectedItems();
+
             var oModel = this.getView().getModel();
+
             var aItems = oModel.getProperty("/items");
 
             if (aItems.length - aSelectedItems.length < 1) {
+
                 MessageBox.warning("At least one row must remain.");
+
                 return;
             }
 
             MessageBox.confirm("Delete " + aSelectedItems.length + " row(s)?", {
+
                 onClose: function (sAction) {
+
                     if (sAction === MessageBox.Action.OK) {
 
                         var aIndices = aSelectedItems.map(function (oItem) {
-                            return parseInt(oItem.getBindingContextPath().split("/").pop());
-                        }).sort(function (a, b) { return b - a; });
 
+                            return parseInt(
+                                oItem.getBindingContextPath().split("/").pop()
+                            );
+
+                        }).sort(function (a, b) {
+
+                            return b - a;
+
+                        });
+
+                        // DELETE ROWS
                         aIndices.forEach(function (i) {
+
                             aItems.splice(i, 1);
+
                         });
 
                         oModel.setProperty("/items", aItems);
+
                         oModel.setProperty("/selectedItemsCount", 0);
+
                         oTable.removeSelections(true);
 
+                        // REFRESH RESPONSIBLE PERSON EMAILS
+                        that._refreshResponsiblePersonEmails();
+
+                        // RECALCULATE USD
                         that._convertToUSD();
 
                         MessageToast.show(aIndices.length + " row(s) deleted");
@@ -1683,7 +1934,7 @@ sap.ui.define([
                 !this._validateCutoffDate() ||
                 !this._validateTableItems() ||
                 !this._validateSupportingDocuments()) {
-                MessageBox.error("Please fill in all required fields correctly");
+                MessageBox.error("Validation failed. Please review highlighted fields.");
                 return;
             }
 
@@ -1691,6 +1942,24 @@ sap.ui.define([
             oModel.setProperty("/requestType", oModel.getProperty("/accrualType"));
 
             var oData = oModel.getData();
+
+            // Threshold validation based on TOTAL USD
+            var totalUSD = oModel.getProperty("/totalUSD") || 0;
+
+            var companyCode = oModel.getProperty("/companyCode");
+
+            var threshold = this._getThreshold(companyCode);
+
+            if (totalUSD < threshold) {
+
+                MessageBox.error(
+                    "Total USD amount must be greater than " +
+                    threshold.toLocaleString() +
+                    " USD for submission."
+                );
+
+                return;
+            }
 
             //Apply debit → credit logic
             oData.items = this._preparePayloadWithCreditLogic();
@@ -1775,7 +2044,7 @@ sap.ui.define([
                 !this._validateCutoffDate() ||
                 !this._validateTableItems() ||
                 !this._validateSupportingDocuments()) {
-                MessageBox.error("Please fill in all required fields correctly");
+                MessageBox.error("Validation failed. Please review highlighted fields.");
                 return;
             }
 
@@ -2246,6 +2515,8 @@ sap.ui.define([
             return {
                 supplier: "",
                 supplierNumber: "",
+                materialNumber: "",
+                countryRegionKey: "",
                 description: "",
                 currency: "",
                 excludeTax: "",
@@ -2354,7 +2625,6 @@ sap.ui.define([
                 { id: "typeOfRequestSelect", name: "Type of Request" },
                 { id: "accrualTypeSelect", name: "Type of Accrual" },
                 { id: "typeOfPartySelect", name: "Type of Party" },
-                { id: "costCenterOwnerSelect", name: "Cost Center Owner" }
             ];
 
             var sTypeOfRequest = this.getView().getModel().getProperty("/typeOfRequest");
@@ -2390,72 +2660,180 @@ sap.ui.define([
         },
 
         _validateTableItems: function () {
+
             var oModel = this.getView().getModel();
-            var aItems = oModel.getProperty("/items");
-            var bValid = true;
 
-            if (aItems.length === 0) { MessageBox.error("At least one line item is required"); return false; }
-            if (oModel.getProperty("/typeOfRequest") === "Reclass" && aItems.length > 2) {
-                MessageBox.error("Reclass request can have a maximum of 2 line items only.");
-                return false;
-            }
+            var aItems = oModel.getProperty("/items") || [];
 
-            var aRequired = [
-                { field: "supplier", label: "Supplier/Customer" },
-                { field: "description", label: "Description" },
-                { field: "currency", label: "Currency" },
-                { field: "excludeTax", label: "Exclude Tax" },
-                { field: "glAccount", label: "GL Account Code" },
-                { field: "creditDebit", label: "Credit/Debit Indicator" }
-            ];
+            var valid = true;
 
-            aItems.forEach(function (item) {
-                aRequired.forEach(function (req) {
-                    var sValue = item[req.field];
-                    if (!sValue || sValue.toString().trim() === "") {
-                        item[req.field + "State"] = "Error";
-                        item[req.field + "StateText"] = req.label + " is required";
-                        bValid = false;
-                    } else {
-                        item[req.field + "State"] = "None";
-                        item[req.field + "StateText"] = "";
-                    }
-                });
-
-                if (item.excludeTax && isNaN(item.excludeTax)) {
-                    item.excludeTaxState = "Error";
-                    item.excludeTaxStateText = "Must be a valid number";
-                    bValid = false;
-                } else if (item.excludeTax && !isNaN(item.excludeTax) && parseFloat(item.excludeTax) < 5000) {
-                    item.excludeTaxState = "Error";
-                    item.excludeTaxStateText = "Amount less than 5000 is not allowed for accrual";
-                    bValid = false;
-                }
-            });
-
-            // Currency mismatch check — all rows must match row 1's currency
-            var sRow1Currency = aItems[0] ? aItems[0].currency : "";
-            var bCurrencyMismatch = false;
             aItems.forEach(function (item, index) {
-                if (index === 0) return;
-                if (item.currency && sRow1Currency && item.currency !== sRow1Currency) {
-                    item.currencyState = "Error";
-                    item.currencyStateText = "Currency mismatch";
-                    bCurrencyMismatch = true;
-                    bValid = false;
+
+                var sPath = "/items/" + index;
+
+                // ===============================
+                // Supplier Validation
+                // ===============================
+
+                if (!item.supplier) {
+
+                    valid = false;
+
+                    oModel.setProperty(
+                        sPath + "/supplierState",
+                        "Error"
+                    );
+
+                    oModel.setProperty(
+                        sPath + "/supplierStateText",
+                        "Supplier/Customer required"
+                    );
+
+                } else {
+
+                    oModel.setProperty(
+                        sPath + "/supplierState",
+                        "None"
+                    );
+
+                    oModel.setProperty(
+                        sPath + "/supplierStateText",
+                        ""
+                    );
                 }
+
+                // ===============================
+                // Description Validation
+                // ===============================
+
+                if (!item.description) {
+
+                    valid = false;
+
+                    oModel.setProperty(
+                        sPath + "/descriptionState",
+                        "Error"
+                    );
+
+                    oModel.setProperty(
+                        sPath + "/descriptionStateText",
+                        "Description required"
+                    );
+
+                } else {
+
+                    oModel.setProperty(
+                        sPath + "/descriptionState",
+                        "None"
+                    );
+
+                    oModel.setProperty(
+                        sPath + "/descriptionStateText",
+                        ""
+                    );
+                }
+
+                // ===============================
+                // Currency Validation
+                // ===============================
+
+                if (!item.currency) {
+
+                    valid = false;
+
+                    oModel.setProperty(
+                        sPath + "/currencyState",
+                        "Error"
+                    );
+
+                    oModel.setProperty(
+                        sPath + "/currencyStateText",
+                        "Currency required"
+                    );
+
+                } else {
+
+                    oModel.setProperty(
+                        sPath + "/currencyState",
+                        "None"
+                    );
+
+                    oModel.setProperty(
+                        sPath + "/currencyStateText",
+                        ""
+                    );
+                }
+
+                // ===============================
+                // Exclude Tax Validation
+                // ONLY EMPTY CHECK
+                // ===============================
+
+                if (
+                    item.excludeTax === null ||
+                    item.excludeTax === undefined ||
+                    item.excludeTax === ""
+                ) {
+
+                    valid = false;
+
+                    oModel.setProperty(
+                        sPath + "/excludeTaxState",
+                        "Error"
+                    );
+
+                    oModel.setProperty(
+                        sPath + "/excludeTaxStateText",
+                        "Amount required"
+                    );
+
+                } else {
+
+                    oModel.setProperty(
+                        sPath + "/excludeTaxState",
+                        "None"
+                    );
+
+                    oModel.setProperty(
+                        sPath + "/excludeTaxStateText",
+                        ""
+                    );
+                }
+
+                // ===============================
+                // GL Account Validation
+                // ===============================
+
+                if (!item.glAccount) {
+
+                    valid = false;
+
+                    oModel.setProperty(
+                        sPath + "/glAccountState",
+                        "Error"
+                    );
+
+                    oModel.setProperty(
+                        sPath + "/glAccountStateText",
+                        "GL Account required"
+                    );
+
+                } else {
+
+                    oModel.setProperty(
+                        sPath + "/glAccountState",
+                        "None"
+                    );
+
+                    oModel.setProperty(
+                        sPath + "/glAccountStateText",
+                        ""
+                    );
+                }
+
             });
 
-            if (bCurrencyMismatch) {
-                MessageBox.error(
-                    "Currency mismatch detected.\n\n" +
-                    "All line items must use the same currency as row 1 ('" + sRow1Currency + "').\n\n" +
-                    "Please submit a separate request form for line items with a different currency."
-                );
-            }
-
-            oModel.setProperty("/items", aItems);
-            return bValid;
+            return valid;
         },
 
         _validateCutoffDate: function () {
@@ -2500,52 +2878,34 @@ sap.ui.define([
             }
         },
 
-        _validateExcludeTaxValue: function (sPath, sValue) {
+        _validateExcludeTaxValue: function (sPath, value) {
+
             var oModel = this.getView().getModel();
 
-            // Reset state
-            oModel.setProperty(sPath + "/excludeTaxState", "None");
-            oModel.setProperty(sPath + "/excludeTaxStateText", "");
+            var amount = parseFloat(value);
 
-            if (!sValue || sValue.toString().trim() === "") return;
+            // Only validate numeric correctness
+            if (isNaN(amount) || amount <= 0) {
 
-            var fValue = parseFloat(sValue);
-            var fPONetAmount = parseFloat(oModel.getProperty(sPath + "/poNetAmount"));
-
-            //Not a number
-            if (isNaN(fValue)) {
                 oModel.setProperty(sPath + "/excludeTaxState", "Error");
-                oModel.setProperty(sPath + "/excludeTaxStateText", "Must be a valid number");
-                return;
-            }
 
-            //Less than 5000
-            if (fValue < 5000) {
-                oModel.setProperty(sPath + "/excludeTaxState", "Error");
                 oModel.setProperty(
                     sPath + "/excludeTaxStateText",
-                    "Amount less than 5000 is not allowed for accrual"
+                    "Enter a valid amount"
                 );
-                return;
+
+                return false;
             }
 
-            //NEW VALIDATION → Exceeding PO Net Amount
-            if (!isNaN(fPONetAmount) && fValue > fPONetAmount) {
-                oModel.setProperty(sPath + "/excludeTaxState", "Error");
-                oModel.setProperty(
-                    sPath + "/excludeTaxStateText",
-                    "Amount exceeds Purchase Order Net Amount (" + fPONetAmount + ")"
-                );
-
-                sap.m.MessageBox.error(
-                    "Entered amount (" + fValue + ") is exceeding the Purchase Order Net Amount (" + fPONetAmount + ")."
-                );
-                return;
-            }
-
-            //Valid
+            // Clear validation state
             oModel.setProperty(sPath + "/excludeTaxState", "None");
-            oModel.setProperty(sPath + "/excludeTaxStateText", "");
+
+            oModel.setProperty(
+                sPath + "/excludeTaxStateText",
+                ""
+            );
+
+            return true;
         },
 
         _clearValueStates: function () {
@@ -2598,6 +2958,10 @@ sap.ui.define([
         },
 
         _preparePayloadForPatch: function (oData, iStatus) {
+            var oModel = this.getView().getModel();
+            var totalExcludeTax = oModel.getProperty("/totalExcludeTax") || 0;
+            var totalUSD = oModel.getProperty("/totalUSD") || 0;
+
             return {
                 status: "COMPLETED",
                 decision: "submit",
@@ -2609,17 +2973,12 @@ sap.ui.define([
                     approvedBy: oData.approvedBy || "",
                     costCenterOwner: oData.costCenterOwner,
                     accrualCutOffDate: oData.cutoffDate || "",
-
-                    //TYPE OF ACCRUAL — match POST field name exactly
                     TypeofRequest: oData.accrualType || "",
-                    typeOfRequest: oData.accrualType || "",   // extra safety
-                    typeOfAccrual: oData.accrualType || "",   // keep old one too
-
-                    //TYPE OF REQUEST (Accrual / Reclass) — keep consistent
+                    typeOfRequest: oData.accrualType || "",
+                    typeOfAccrual: oData.accrualType || "",
                     Requesttype: oData.typeOfRequest || "",
                     requestType: oData.typeOfRequest || "",
                     typeOfRequest_1: oData.typeOfRequest || "",
-
                     typeOfParty: oData.typeOfParty || "",
                     debitGLType: oData.debitGLType || "",
                     CostCenterOwner: (oData.costCenterOwnerEmails || [])
@@ -2627,12 +2986,13 @@ sap.ui.define([
                         .join(","),
                     status: iStatus.toString(),
                     financeApproval: this._calculateFinanceApproval(oData),
-
                     supportingDocuments: oData.dmsFolderId
                         ? "spa-res:cmis:folderid:" + oData.dmsFolderId
                         : "",
-
                     Lastupdateddate: this._getCurrentDateFormatted(),
+                    // ✅ NEW: total fields
+                    TotalAmount: totalUSD.toString(),
+                    Total_Exclude_Tax: totalExcludeTax.toString(),
 
                     accrual_Table: oData.items.map(function (item, index) {
                         var cdIndicator = item.creditDebit === "Debit" ? "D" :
@@ -2656,7 +3016,10 @@ sap.ui.define([
                             salesOrderItemNumber: item.salesOrderItem || "",
                             segmentProduct: item.SegmentProduct || "",
                             segmentShiptoParty: item.segmentShip || "",
-                            segmentSoldtoParty: item.segmentSold || ""
+                            segmentSoldtoParty: item.segmentSold || "",
+                            // NEW
+                            materialNumber: item.materialNumber || "",
+                            countryRegionKey: item.countryRegionKey || ""
                         };
                     })
                 }
@@ -2664,10 +3027,13 @@ sap.ui.define([
         },
 
         _preparePayloadForProcessAutomation: function (oData, iStatus) {
+            var oModel = this.getView().getModel();
             var bFinanceApproval = this._calculateFinanceApproval(oData);
             var sSupportingDocs = oData.dmsFolderId
                 ? "spa-res:cmis:folderid:" + oData.dmsFolderId
                 : "";
+            var totalExcludeTax = oModel.getProperty("/totalExcludeTax") || 0;
+            var totalUSD = oModel.getProperty("/totalUSD") || 0;
 
             return {
                 definitionId: WorkflowAPI._processAutomationConfig.definitionId,
@@ -2679,16 +3045,11 @@ sap.ui.define([
                         RequestedBy: oData.requestedBy || "",
                         ApprovedBy: oData.approvedBy || "",
                         AccrualCutOffDate: oData.cutoffDate || "",
-
-                        //TYPE OF ACCRUAL (Commission / Rebate / Adhoc / Technology)
                         TypeofRequest: oData.accrualType || "",
-                        typeOfRequest: oData.accrualType || "",  // extra safety
-
-                        //TYPE OF REQUEST (Accrual / Reclass) — clearly separate
+                        typeOfRequest: oData.accrualType || "",
                         Requesttype: oData.typeOfRequest || "",
                         requestType: oData.typeOfRequest || "",
                         typeOfRequest_1: oData.typeOfRequest || "",
-
                         Partytype: oData.typeOfParty || "",
                         CSNumber: oData.csNumber || "",
                         CostCenterOwner: (oData.costCenterOwnerEmails || [])
@@ -2699,6 +3060,9 @@ sap.ui.define([
                         Status: iStatus.toString(),
                         financeApproval: bFinanceApproval,
                         Supporting_Documents: sSupportingDocs,
+                        // ✅ NEW: total fields
+                        TotalAmount: totalUSD.toString(),
+                        Total_Exclude_Tax: totalExcludeTax.toString(),
 
                         Accrual_Table: oData.items.map(function (item, index) {
                             var cdIndicator = item.creditDebit === "Debit" ? "D" :
@@ -2722,7 +3086,10 @@ sap.ui.define([
                                 SalesOrderItemNumber: item.salesOrderItem || "",
                                 SegmentProduct: item.SegmentProduct || "",
                                 SegmentShiptoParty: item.segmentShip || "",
-                                SegmentSoldtoParty: item.segmentSold || ""
+                                SegmentSoldtoParty: item.segmentSold || "",
+                                // ✅ NEW
+                                MaterialNumber: item.materialNumber || "",
+                                Country_Regionkey: item.countryRegionKey || ""
                             };
                         })
                     }

@@ -7,11 +7,11 @@
     xmlns:u="sap.ui.unified"
     xmlns:html="http://www.w3.org/1999/xhtml">
 
-    <Page id="page" title="Accrual/Reclass request form" showHeader="true" showFooter="true">
+    <Page id="page" title="Accrual request form" showHeader="true" showFooter="true">
         <customHeader>
             <Bar id="_IDGenBar">
                 <contentMiddle>
-                    <Title id="_IDGenTitle" text="Accrual/Reclass request form" level="H1" />
+                    <Title id="_IDGenTitle" text="Accrual request form" level="H1" />
                 </contentMiddle>
             </Bar>
         </customHeader>
@@ -61,22 +61,24 @@
                         <Input id="requestedByInput" value="{/requestedBy}" placeholder="Enter requester email" required="true" change=".onFieldChange" />
 
                         <Label id="_IDGenLabel5" text="To be Approved by" required="true" class="redAsterisk" />
-                        <Input id="approvedByInput" value="{/approvedBy}" placeholder="Enter approver email" required="true" change=".onFieldChange" />
+                        <ComboBox id="approvedByInput" value="{/approvedBy}" selectedKey="{/approvedBy}" required="true" editable="true" change=".onApprovedByChange" items="{/approvedByEmails}">
 
-                        <Label id="costCenterOwnerLabel" text="Cost Center Owner" required="true" class="redAsterisk" />
-                        <Select id="costCenterOwnerSelect" selectedKey="{/costCenterOwner}" required="true" change=".onCostCenterOwnerChange" items="{/costCenterOwnerEmails}">
+                            <core:Item id="_IDGenItem5" key="{email}" text="{email}" />
+
+                        </ComboBox>
+
+                        <Label id="costCenterOwnerLabel" text="Responsible Person" required="false" />
+                        <Select id="costCenterOwnerSelect" selectedKey="{/costCenterOwner}" required="false" change=".onCostCenterOwnerChange" items="{/costCenterOwnerEmails}">
                             <core:Item id="_IDGenItem17" key="{email}" text="{email}" />
                         </Select>
 
-                        <!-- Type of Request (NEW FIELD) -->
-                        <!-- Type of Request (NEW FIELD) -->
                         <Label id="typeOfRequestLabel" text="Type of Request" required="true" class="redAsterisk" />
                         <Select id="typeOfRequestSelect" selectedKey="{/typeOfRequest}" required="true" change=".onFieldChange">
 
                             <items>
                                 <core:Item id="_IDGenItem18" key="" text="Select..." />
                                 <core:Item id="_IDGenItem19" key="Accrual" text="Accrual" />
-                                <core:Item id="_IDGenItem21" key="Reclass" text="Reclass" />
+                                <!-- <core:Item id="_IDGenItem21" key="Reclass" text="Reclass" /> -->
                             </items>
                         </Select>
 
@@ -174,6 +176,12 @@
                                 </Column>
                                 <Column id="_IDGenColumn10" width="11rem">
                                     <Text id="_IDGenText10" text="Trading Partner" />
+                                </Column>
+                                <Column id="_IDGenColumn_MatNum" width="11rem">
+                                    <Text id="_IDGenText108" text="Material Number" />
+                                </Column>
+                                <Column id="_IDGenColumn_Country" width="11rem">
+                                    <Text id="_IDGenText109" text="Country/Region Key" />
                                 </Column>
                                 <Column id="_IDGenColumn11" width="11rem">
                                     <Text id="_IDGenText11" text="Sales Order Number" />
@@ -293,7 +301,8 @@
                                                 <core:Item id="_IDGenItem44" key="5567" text="5567" />
                                             </items>
                                         </Select>
-
+                                        <Input id="materialNumberInput" value="{materialNumber}" placeholder="Material Number" editable="false" enabled="true" />
+                                        <Input id="countryRegionKeyInput" value="{countryRegionKey}" placeholder="Country/Region Key" change=".onTableFieldChange" />
                                         <!-- Sales Order Number - NEW COMBOBOX WITH SEARCH -->
                                         <ComboBox id="salesOrderSelect" selectedKey="{salesOrder}" change=".onSalesOrderChange" loadItems=".onSalesOrderOpen" items="{/salesOrders}">
                                             <core:Item id="_IDGenItemSO" key="{SalesOrder}" text="{SalesOrder}" />

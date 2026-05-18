@@ -31,7 +31,7 @@ sap.ui.define([
             currencyExchangeRatePath: "/UI_CURRENCYEXCHANGERATE/C_CurrencyExchangeRateTP",
             segmentPath: "/MD_PRODUCT_OP_SRV/C_ProductObjPgSalesOrder",
             wbsPath: "/PS_WBSELEMENT_OVW_SRV/I_WBSElementValueHelp",
-
+            responsibleEmailPath: "/http/GET_ResponsibleEmail1",
             dashboard: {
                 accrualApiPath: "/ZBTP_HYPERAUTO_SERVICE_SRV/AccrualsSet",
                 recallApiPath: "/http/Accrual/Process"
@@ -72,7 +72,7 @@ sap.ui.define([
             taskInstancePath: "/public/workflow/rest/v1/task-instances",
 
             businessPartnerPath: "/API_BUSINESS_PARTNER",
-            companyCodePath: "/C_COMPANYCODEVALUEHELPPROJ_CDS/C_CompanyCodeValueHelpProj",
+            companyCodePath: "/API_COMPANYCODE_SRV/A_CompanyCode?$filter=FieldStatusVariant eq 'INF1'",
             glAccountPath: "/C_GLACCOUNTVALUEHELP_CDS/C_GLAccountValueHelp",
             purchaseOrderPath: "/C_PURCHASEORDER_FS_SRV/C_PurchaseOrderFs",
             purchaseOrderItemPath: "/C_PURCHASEORDER_FS_SRV/I_PurchaseOrderItem",
@@ -83,6 +83,7 @@ sap.ui.define([
             currencyPath: "/UI_CURRENCYEXCHANGERATE/I_Currency?$top=200",
             segmentPath: "/MD_PRODUCT_OP_SRV/C_ProductObjPgSalesOrder",
             wbsPath: "/PS_WBSELEMENT_OVW_SRV/I_WBSElementValueHelp",
+            responsibleEmailPath: "/ZBTP_HYPERAUTO_SERVICE_SRV/ResponsibleEmail001Set",
 
             dashboard: {
                 accrualApiPath: "/ZBTP_HYPERAUTO_SERVICE_SRV/AccrualsSet",
@@ -239,6 +240,12 @@ sap.ui.define([
             username: username,
             password: password
         },
+
+responsibleEmail: {
+    apiEndpoint: joinUrl(env.apiHost, env.responsibleEmailPath),
+                username: username,
+            password: password
+},
 
         salesOrder: {
             apiEndpoint: joinUrl(env.apiHost, env.salesOrderPath),

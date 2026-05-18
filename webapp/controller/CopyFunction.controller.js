@@ -20,6 +20,7 @@ sap.ui.define([
                 companyCode: "",
                 requestedBy: sEmail || "",
                 approvedBy: "",
+                approvedByEmails: [],
                 accrualType: "",
                 typeOfParty: "",
                 csNumber: "",
@@ -47,6 +48,8 @@ sap.ui.define([
                 dmsFolderId: "",
                 totalExcludeTax: 0,
                 totalUSD: 0,
+                wbsElements: [],
+                wbsLoaded: false,
                 costCenterOwner: "",
                 costCenterOwnerEmails: []
             });
@@ -225,6 +228,7 @@ sap.ui.define([
                     { GLAccount: "63600001", displayText: "63600001 - Technology-Research & Development Consulting" },
                     { GLAccount: "63600005", displayText: "63600005 - Technology-Bench Testing" },
                     { GLAccount: "63600004", displayText: "63600004 - Technology-Engine Testing" },
+                    { GLAccount: "63600007", displayText: "63600007 - Technology-Other Testing" },
                     { GLAccount: "63600008", displayText: "63600008 - Technology-Bill-Out" },
                     { GLAccount: "63600006", displayText: "63600006 - Technology-Field Testing" },
                     { GLAccount: "40000002", displayText: "40000002 - Sales Revenue Non-Group-Tech Fund" },
@@ -365,26 +369,45 @@ sap.ui.define([
         _getFinanceManagerEmail: function (companyCode) {
 
             var map = {
-                "BRC1": "Jorge.Nascimento@Infineum.com",
-                "USC1": "Sophie.Paterson@Infineum.com",
-                "DEC1": "Gordana.Sedic@Infineum.com",
-                "DEC2": "Gordana.Sedic@Infineum.com",
-                "NLC1": "Helen.Summerville@Infineum.com",
-                "NLC2": "Helen.Summerville@Infineum.com",
-                "GBC1": "Helen.Summerville@Infineum.com",
-                "GBC2": "Helen.Summerville@Infineum.com",
-                "FRC1": "Helen.Summerville@Infineum.com",
-                "ESC1": "Helen.Summerville@Infineum.com",
-                "ITC1": "Stefania.Torselli@Infineum.com",
-                "INC1": "Anagha.Venkitaraman@Infineum.com",
-                "SGC1": "KiatLi.Lee@Infineum.com",
-                "JPC1": "KiatLi.Lee@Infineum.com",
-                "KRC1": "KiatLi.Lee@Infineum.com",
-                "CNC1": "Xuan.Li@Infineum.com",
-                "CNC2": "Xuan.Li@Infineum.com"
+
+                "BRC1": ["Jorge.Nascimento@Infineum.com"],
+                "USC1": ["Sophie.Paterson@Infineum.com"],
+
+                "DEC1": ["Gordana.Sedic@Infineum.com"],
+                "DEC2": ["Gordana.Sedic@Infineum.com"],
+
+                "NLC1": ["Helen.Summerville@Infineum.com"],
+                "NLC2": ["Helen.Summerville@Infineum.com"],
+                "GBC1": ["Helen.Summerville@Infineum.com"],
+                "GBC2": ["Helen.Summerville@Infineum.com"],
+                "FRC1": ["Helen.Summerville@Infineum.com"],
+                "ESC1": ["Helen.Summerville@Infineum.com"],
+
+                "ITC1": ["Stefania.Torselli@Infineum.com"],
+
+                "INC1": ["Anagha.Venkitaraman@Infineum.com"],
+
+                // UPDATED
+                "SGC1": [
+                    "KiatLi.Lee@Infineum.com",
+                    "Valerie.Ong@Infineum.com"
+                ],
+
+                "JPC1": [
+                    "KiatLi.Lee@Infineum.com",
+                    "Valerie.Ong@Infineum.com"
+                ],
+
+                "KRC1": [
+                    "KiatLi.Lee@Infineum.com",
+                    "Valerie.Ong@Infineum.com"
+                ],
+
+                "CNC1": ["Xuan.Li@Infineum.com"],
+                "CNC2": ["Xuan.Li@Infineum.com"]
             };
 
-            return map[companyCode] || "";
+            return map[companyCode] || [];
         },
 
 
@@ -406,71 +429,64 @@ sap.ui.define([
 
             var oModel = this.getView().getModel();
 
-            // ✅ ALWAYS use header total ONLY
-            var totalUSD = parseFloat(oModel.getProperty("/totalUSD")) || 0;
+            var totalUSD = parseFloat(
+                oModel.getProperty("/totalUSD")
+            ) || 0;
+
             var companyCode = oModel.getProperty("/companyCode");
 
             if (!companyCode) {
+
                 oModel.setProperty("/approvedBy", "");
+                oModel.setProperty("/approvedByEmails", []);
+
                 return;
             }
 
             var threshold = this._getThreshold(companyCode);
 
-            // ✅ BELOW threshold → NO approver
+            // BELOW THRESHOLD
             if (totalUSD < threshold) {
+
                 oModel.setProperty("/approvedBy", "");
+                oModel.setProperty("/approvedByEmails", []);
+
                 return;
             }
 
-            // ✅ ABOVE threshold → Finance Manager
-            var email = this._getFinanceManagerEmail(companyCode);
+            // ABOVE / EQUAL THRESHOLD
+            var aEmails = this._getFinanceManagerEmail(companyCode);
 
-            oModel.setProperty("/approvedBy", email || "");
+            if (aEmails && aEmails.length > 0) {
+
+                var aEmailObjects = aEmails.map(function (email) {
+                    return {
+                        email: email
+                    };
+                });
+
+                oModel.setProperty(
+                    "/approvedByEmails",
+                    aEmailObjects
+                );
+
+                // auto select first approver
+                oModel.setProperty(
+                    "/approvedBy",
+                    aEmails[0]
+                );
+            }
         },
 
 
 
         _fetchCurrencyFromCostCenter: function (companyCode) {
-            if (!companyCode) {
-                console.warn("Company code not provided for currency fetch");
-                return Promise.resolve(null);
-            }
 
-            var url = this._costCentreConfig.apiEndpoint + "?$filter=CompanyCode eq '" + companyCode + "'";
-            console.log("Fetching currency from Cost Center API:", url);
+            return WorkflowAPI.fetchCurrencyFromCostCenter(
+                companyCode
+            );
 
-            return fetch(url, {
-                method: "GET",
-                headers: {
-                    "Authorization": "Basic " + btoa(
-                        this._costCentreConfig.Username + ":" +
-                        this._costCentreConfig.Password
-                    ),
-                    "Accept": "application/json"
-                }
-            })
-                .then(function (response) {
-                    if (!response.ok) {
-                        console.error("Failed to fetch currency from cost center:", response.status);
-                        return null;
-                    }
-                    return response.json();
-                })
-                .then(function (data) {
-                    if (data && data.d && data.d.results && data.d.results.length > 0) {
-                        var currency = data.d.results[0].CostCenterCurrency;
-                        console.log("Currency fetched from Cost Center:", currency);
-                        return currency;
-                    }
-                    return null;
-                })
-                .catch(function (error) {
-                    console.error("Error fetching currency from cost center:", error);
-                    return null;
-                });
         },
-
         _fetchGLAccounts: function (companyCode) {
             return WorkflowAPI.fetchGLAccounts(companyCode);
         },
@@ -491,146 +507,57 @@ sap.ui.define([
             return WorkflowAPI.fetchInternalOrders(companyCode);
         },
 
+        _fetchWBS: function () {
+            return WorkflowAPI.fetchWBS();
+        },
+
         _fetchSalesOrders: function () {
             return WorkflowAPI.fetchSalesOrders();
         },
-
         _fetchSalesOrderItems: function (salesOrder) {
+
             if (!salesOrder) {
                 return Promise.resolve([]);
             }
 
-            var url = this._salesOrderConfig.apiEndpoint + "?$filter=SalesOrder eq '" + salesOrder + "'";
-            console.log("Fetching Sales Order Items from:", url);
+            return WorkflowAPI.fetchSalesOrderItems(salesOrder)
+                .then(function (aItems) {
 
-            return fetch(url, {
-                method: "GET",
-                headers: {
-                    "Authorization": "Basic " + btoa(
-                        this._salesOrderConfig.Username + ":" +
-                        this._salesOrderConfig.Password
-                    ),
-                    "Accept": "application/json"
-                }
-            })
-                .then(function (response) {
-                    if (!response.ok) {
-                        console.error("Failed to fetch sales order items:", response.status);
-                        return [];
-                    }
-                    return response.json();
-                })
-                .then(function (data) {
-                    if (data && data.d && data.d.results) {
-                        console.log("Found " + data.d.results.length + " sales order items");
-                        return data.d.results;
-                    }
-                    return [];
+                    console.log(
+                        "Sales Order Items:",
+                        aItems
+                    );
+
+                    return aItems || [];
+
                 })
                 .catch(function (error) {
-                    console.error("Error fetching sales order items:", error);
+
+                    console.error(
+                        "Error fetching sales order items:",
+                        error
+                    );
+
                     return [];
                 });
         },
 
-        _fetchCurrencies: function () {
-            return WorkflowAPI.fetchCurrencies();
-        },
+        _fetchGLAccountForSupplierCustomer: function (
+            supplierCustomerNumber,
+            typeOfParty
+        ) {
 
-        _fetchSegmentData: function (salesOrder) {
-            if (!salesOrder) {
-                return Promise.resolve(null);
-            }
-
-            var url = this._segmentConfig.apiEndpoint + "?$filter=SalesOrder eq '" + salesOrder + "'";
-            console.log("Fetching Segment data from:", url);
-
-            return fetch(url, {
-                method: "GET",
-                headers: {
-                    "Authorization": "Basic " + btoa(
-                        this._segmentConfig.Username + ":" +
-                        this._segmentConfig.Password
-                    ),
-                    "Accept": "application/json"
-                }
-            })
-                .then(function (response) {
-                    if (!response.ok) {
-                        console.error("Failed to fetch segment data:", response.status);
-                        return null;
-                    }
-                    return response.json();
-                })
-                .then(function (data) {
-                    if (data && data.d && data.d.results && data.d.results.length > 0) {
-                        var segmentData = data.d.results[0];
-                        console.log("Segment data fetched:", segmentData);
-                        return {
-                            Product: segmentData.Product || "",
-                            ShipToParty: segmentData.ShipToParty || "",
-                            SoldToParty: segmentData.SoldToParty || ""
-                        };
-                    }
-                    return null;
-                })
-                .catch(function (error) {
-                    console.error("Error fetching segment data:", error);
-                    return null;
-                });
-        },
-
-        _fetchGLAccountForSupplierCustomer: function (supplierCustomerNumber, typeOfParty) {
             var oModel = this.getView().getModel();
-            var sCompanyCode = oModel.getProperty("/companyCode");
 
-            if (!sCompanyCode) {
-                return Promise.resolve(null);
-            }
+            var sCompanyCode =
+                oModel.getProperty("/companyCode");
 
-            var endpoint = "";
-            if (typeOfParty === "Supplier") {
-                endpoint = this._businessPartnerConfig.baseEndpoint + "/A_Supplier('" + supplierCustomerNumber + "')/to_SupplierCompany";
-            } else if (typeOfParty === "Customer") {
-                endpoint = this._businessPartnerConfig.baseEndpoint + "/A_Customer('" + supplierCustomerNumber + "')/to_CustomerCompany";
-            } else {
-                return Promise.resolve(null);
-            }
+            return WorkflowAPI.fetchGLAccountForSupplierCustomer(
+                supplierCustomerNumber,
+                typeOfParty,
+                sCompanyCode
+            );
 
-            return fetch(endpoint, {
-                method: "GET",
-                headers: {
-                    "Authorization": "Basic " + btoa(
-                        this._businessPartnerConfig.Username + ":" +
-                        this._businessPartnerConfig.Password
-                    ),
-                    "Accept": "application/json"
-                }
-            })
-                .then(function (response) {
-                    if (!response.ok) {
-                        return null;
-                    }
-                    return response.json();
-                })
-                .then(function (data) {
-                    if (data && data.d && data.d.results && data.d.results.length > 0) {
-                        var matchingEntry = data.d.results.find(function (item) {
-                            return item.CompanyCode === sCompanyCode;
-                        });
-
-                        if (matchingEntry && matchingEntry.ReconciliationAccount) {
-                            return matchingEntry.ReconciliationAccount;
-                        } else {
-                            return data.d.results[0].ReconciliationAccount;
-                        }
-                    }
-                    return null;
-                })
-                .catch(function (error) {
-                    console.error("Error fetching GL account:", error);
-                    return null;
-                });
         },
 
         _getCurrentMonthEndDate: function () {
@@ -724,6 +651,15 @@ sap.ui.define([
                 console.error("Error extracting instance ID from URL:", error);
                 return null;
             }
+        },
+
+        onApprovedByChange: function (oEvent) {
+
+            var sValue = oEvent.getSource().getValue();
+
+            this.getView()
+                .getModel()
+                .setProperty("/approvedBy", sValue);
         },
 
         _loadInstanceData: function (sInstanceId) {
@@ -858,7 +794,6 @@ sap.ui.define([
                         return (item.creditDebitIndicator || item.CreditDebitIndicator) === "Debit";
                     })
                     .map(function (item) {
-
                         return {
                             supplier: getValue(item, "supplierCustomer", "SupplierCustomer"),
                             supplierNumber: "",
@@ -866,10 +801,7 @@ sap.ui.define([
                             currency: getValue(item, "currency", "Currency"),
                             excludeTax: getValue(item, "excludeTax", "ExcludeTax"),
                             glAccount: getValue(item, "gLAccountCode", "GLAccountCode"),
-
-                            // 🔥 FORCE DEBIT IN UI
                             creditDebit: "Debit",
-
                             poNumber: getValue(item, "purchaseOrderNumber", "PurchaseOrderNumber"),
                             poLineItem: getValue(item, "purchaseOrderLineItem", "PurchaseOrderLineItem"),
                             costCentre: getValue(item, "costCentre", "CostCentre"),
@@ -882,26 +814,23 @@ sap.ui.define([
                             segmentShip: getValue(item, "segmentShiptoParty", "SegmentShiptoParty"),
                             segmentSold: getValue(item, "segmentSoldtoParty", "SegmentSoldtoParty"),
 
+                            // ✅ NEW
+                            materialNumber: getValue(item, "materialNumber", "MaterialNumber"),
+                            countryRegionKey: getValue(item, "countryRegionKey", "Country_Regionkey"),
+
                             purchaseOrders: [],
                             purchaseOrderItems: [],
                             salesOrderItems: [],
                             filteredGLAccounts: [],
 
-                            supplierState: "None",
-                            supplierStateText: "",
-                            descriptionState: "None",
-                            descriptionStateText: "",
-                            currencyState: "None",
-                            currencyStateText: "",
-                            excludeTaxState: "None",
-                            excludeTaxStateText: "",
-                            glAccountState: "None",
-                            glAccountStateText: "",
-                            creditDebitState: "None",
-                            creditDebitStateText: ""
+                            supplierState: "None", supplierStateText: "",
+                            descriptionState: "None", descriptionStateText: "",
+                            currencyState: "None", currencyStateText: "",
+                            excludeTaxState: "None", excludeTaxStateText: "",
+                            glAccountState: "None", glAccountStateText: "",
+                            creditDebitState: "None", creditDebitStateText: ""
                         };
                     });
-
                 oModel.setProperty("/items", aItems);
 
                 this._applyDebitGLLogic();
@@ -1197,7 +1126,19 @@ sap.ui.define([
                         oModel.setProperty("/internalOrdersLoaded", true);
                     }
 
-                    return that._fetchSalesOrders();
+                    return WorkflowAPI.fetchWBS()
+                        .then(function (aWBS) {
+
+                            if (aWBS && aWBS.length > 0) {
+
+                                oModel.setProperty("/wbsElements", aWBS);
+
+                                oModel.setProperty("/wbsLoaded", true);
+
+                            }
+
+                            return that._fetchSalesOrders();
+                        });
                 })
                 .then(function (salesOrders) {
                     if (salesOrders && salesOrders.length > 0) {
@@ -1244,6 +1185,7 @@ sap.ui.define([
         _preparePayloadForPatch: function (oData, iStatus) {
 
             var that = this;
+            var oModel = this.getView().getModel();
 
             // Ensure requestType is set
             oData.requestType = oData.accrualType || oData.requestType;
@@ -1253,6 +1195,9 @@ sap.ui.define([
 
             //APPLY AUTO CREDIT LOGIC
             var aProcessedItems = this._preparePayloadWithCreditLogic();
+
+            var totalExcludeTax = oModel.getProperty("/totalExcludeTax") || 0;
+            var totalUSD = oModel.getProperty("/totalUSD") || 0;
 
             var payload = {
                 status: "COMPLETED",
@@ -1292,6 +1237,8 @@ sap.ui.define([
                         : "",
 
                     Lastupdateddate: this._getCurrentDateFormatted(),
+                    TotalAmount: totalUSD.toString(),
+                    Total_Exclude_Tax: totalExcludeTax.toString(),
 
                     //USE PROCESSED ITEMS (WITH AUTO CREDIT)
                     accrual_Table: aProcessedItems.map(function (item, index) {
@@ -1324,7 +1271,9 @@ sap.ui.define([
                             salesOrderItemNumber: item.salesOrderItem || "",
                             segmentProduct: item.SegmentProduct || "",
                             segmentShiptoParty: item.segmentShip || "",
-                            segmentSoldtoParty: item.segmentSold || ""
+                            segmentSoldtoParty: item.segmentSold || "",
+                            materialNumber: item.materialNumber || "",
+                            countryRegionKey: item.countryRegionKey || ""
                         };
                     })
                 }
@@ -1358,16 +1307,15 @@ sap.ui.define([
                 .then(function (aPOItems) {
                     if (aPOItems && aPOItems.length > 0) {
                         oModel.setProperty(sPath + "/purchaseOrderItems", aPOItems);
-
-                        // Auto-populate with first item
                         var firstItem = aPOItems[0];
                         oModel.setProperty(sPath + "/poLineItem", firstItem.PurchaseOrderItem);
                         oModel.setProperty(sPath + "/description", firstItem.PurchaseOrderItemText);
                         oModel.setProperty(sPath + "/excludeTax", firstItem.NetAmount);
+                        // ✅ NEW: map Material
+                        oModel.setProperty(sPath + "/materialNumber", firstItem.Material || "");
+                        that._convertToUSD();
                         oModel.setProperty(sPath + "/poNetAmount", firstItem.NetAmount);
-
                         that._validateExcludeTaxValue(sPath, firstItem.NetAmount);
-
                         MessageToast.show("PO Line Item details auto-populated");
                     } else {
                         MessageToast.show("No line items found for this PO");
@@ -1387,9 +1335,7 @@ sap.ui.define([
             var sSelectedItem = oComboBox.getSelectedKey();
             var oContext = oComboBox.getBindingContext();
 
-            if (!oContext || !sSelectedItem) {
-                return;
-            }
+            if (!oContext || !sSelectedItem) return;
 
             var oModel = this.getView().getModel();
             var sPath = oContext.getPath();
@@ -1403,11 +1349,11 @@ sap.ui.define([
                 if (selectedPOItem) {
                     oModel.setProperty(sPath + "/description", selectedPOItem.PurchaseOrderItemText);
                     oModel.setProperty(sPath + "/excludeTax", selectedPOItem.NetAmount);
-
+                    this._convertToUSD();
                     oModel.setProperty(sPath + "/poNetAmount", selectedPOItem.NetAmount);
-
+                    // ✅ NEW: map Material
+                    oModel.setProperty(sPath + "/materialNumber", selectedPOItem.Material || "");
                     this._validateExcludeTaxValue(sPath, selectedPOItem.NetAmount);
-
                     MessageToast.show("Description and Amount updated");
                 }
             }
@@ -1693,29 +1639,58 @@ sap.ui.define([
         },
 
         onDeleteRow: function (oEvent) {
+
             var that = this;
+
             var oModel = this.getView().getModel();
+
             var aItems = oModel.getProperty("/items");
 
             if (aItems.length === 1) {
-                MessageBox.warning("At least one row is required.");
+
+                MessageBox.warning(
+                    "At least one row is required."
+                );
+
                 return;
             }
 
             var oButton = oEvent.getSource();
-            var oContext = oButton.getBindingContext();
-            var sPath = oContext.getPath();
-            var iIndex = parseInt(sPath.split("/").pop());
 
-            MessageBox.confirm("Are you sure you want to delete this row?", {
-                onClose: function (sAction) {
-                    if (sAction === MessageBox.Action.OK) {
-                        aItems.splice(iIndex, 1);
-                        oModel.setProperty("/items", aItems);
-                        MessageToast.show("Row deleted");
+            var oContext = oButton.getBindingContext();
+
+            var sPath = oContext.getPath();
+
+            var iIndex = parseInt(
+                sPath.split("/").pop()
+            );
+
+            MessageBox.confirm(
+                "Are you sure you want to delete this row?",
+                {
+
+                    onClose: function (sAction) {
+
+                        if (
+                            sAction === MessageBox.Action.OK
+                        ) {
+
+                            aItems.splice(iIndex, 1);
+
+                            oModel.setProperty(
+                                "/items",
+                                aItems
+                            );
+
+                            that._refreshResponsiblePersonEmails();
+
+                            MessageToast.show(
+                                "Row deleted"
+                            );
+                        }
                     }
                 }
-            });
+            );
         },
 
         onSelectionChange: function (oEvent) {
@@ -1727,43 +1702,106 @@ sap.ui.define([
         },
 
         onDeleteSelected: function () {
-            var that = this;
-            var oTable = this.byId("Copy_itemsTable");
-            var aSelectedItems = oTable.getSelectedItems();
-            var oModel = this.getView().getModel();
-            var aItems = oModel.getProperty("/items");
 
-            if (aItems.length - aSelectedItems.length < 1) {
-                MessageBox.warning("At least one row must remain.");
+            var that = this;
+
+            var oTable =
+                this.byId("Copy_itemsTable");
+
+            var aSelectedItems =
+                oTable.getSelectedItems();
+
+            var oModel =
+                this.getView().getModel();
+
+            var aItems =
+                oModel.getProperty("/items");
+
+            if (
+                aItems.length -
+                aSelectedItems.length < 1
+            ) {
+
+                MessageBox.warning(
+                    "At least one row must remain."
+                );
+
                 return;
             }
 
-            MessageBox.confirm("Delete " + aSelectedItems.length + " row(s)?", {
-                onClose: function (sAction) {
-                    if (sAction === MessageBox.Action.OK) {
-                        var aIndicesToDelete = [];
-                        aSelectedItems.forEach(function (oItem) {
-                            var sPath = oItem.getBindingContextPath();
-                            var iIndex = parseInt(sPath.split("/").pop());
-                            aIndicesToDelete.push(iIndex);
-                        });
+            MessageBox.confirm(
+                "Delete " +
+                aSelectedItems.length +
+                " row(s)?",
+                {
 
-                        aIndicesToDelete.sort(function (a, b) {
-                            return b - a;
-                        });
+                    onClose: function (sAction) {
 
-                        aIndicesToDelete.forEach(function (iIndex) {
-                            aItems.splice(iIndex, 1);
-                        });
+                        if (
+                            sAction === MessageBox.Action.OK
+                        ) {
 
-                        oModel.setProperty("/items", aItems);
-                        oModel.setProperty("/selectedItemsCount", 0);
-                        oTable.removeSelections(true);
+                            var aIndicesToDelete = [];
 
-                        MessageToast.show(aIndicesToDelete.length + " row(s) deleted");
+                            aSelectedItems.forEach(
+                                function (oItem) {
+
+                                    var sPath =
+                                        oItem.getBindingContextPath();
+
+                                    var iIndex =
+                                        parseInt(
+                                            sPath.split("/").pop()
+                                        );
+
+                                    aIndicesToDelete.push(
+                                        iIndex
+                                    );
+
+                                }
+                            );
+
+                            aIndicesToDelete.sort(
+                                function (a, b) {
+
+                                    return b - a;
+
+                                }
+                            );
+
+                            aIndicesToDelete.forEach(
+                                function (iIndex) {
+
+                                    aItems.splice(
+                                        iIndex,
+                                        1
+                                    );
+
+                                }
+                            );
+
+                            oModel.setProperty(
+                                "/items",
+                                aItems
+                            );
+
+                            oModel.setProperty(
+                                "/selectedItemsCount",
+                                0
+                            );
+
+                            oTable.removeSelections(true);
+
+                            that._refreshResponsiblePersonEmails();
+
+                            MessageToast.show(
+                                aIndicesToDelete.length +
+                                " row(s) deleted"
+                            );
+                        }
                     }
                 }
-            });
+            );
         },
 
         onFieldChange: function (oEvent) {
@@ -1817,65 +1855,257 @@ sap.ui.define([
             oModel.setProperty(sPath + "/costCentreStateText", "");
 
             // Always refresh Cost Center Owner emails regardless of which row changed
-            this._refreshCostCenterOwnerEmails();
+            this._refreshResponsiblePersonEmails();
         },
 
-        _refreshCostCenterOwnerEmails: function () {
-            var that = this;
+        onInternalOrderChange: function (oEvent) {
+
+            var oContext =
+                oEvent.getSource().getBindingContext();
+
+            if (!oContext) return;
+
+            var sPath = oContext.getPath();
+
+            this._refreshResponsiblePersonEmails();
+        },
+
+        onWBSChange: function (oEvent) {
+
+            var oContext =
+                oEvent.getSource().getBindingContext();
+
+            if (!oContext) return;
+
+            var sPath = oContext.getPath();
+
+            this._refreshResponsiblePersonEmails();
+        },
+
+        _refreshResponsiblePersonEmails: function () {
+
             var oModel = this.getView().getModel();
+
             var aItems = oModel.getProperty("/items") || [];
 
-            // Collect all unique non-empty cost centres across ALL rows
-            var aUniqueCostCentres = [];
+            var aPromises = [];
+
+            var aCollectedEmails = [];
+
+            var aCostCentersDone = [];
+
+            var aInternalOrdersDone = [];
+
+            var aWBSDone = [];
+
+            var aInternalOrders =
+                oModel.getProperty("/internalOrders") || [];
+
+            var aWBS =
+                oModel.getProperty("/wbsElements") || [];
+
             aItems.forEach(function (item) {
-                var sCC = item.costCentre;
-                if (sCC && aUniqueCostCentres.indexOf(sCC) === -1) {
-                    aUniqueCostCentres.push(sCC);
+
+                // =========================
+                // COST CENTER
+                // =========================
+                if (
+                    item.costCentre &&
+                    aCostCentersDone.indexOf(item.costCentre) === -1
+                ) {
+
+                    aCostCentersDone.push(item.costCentre);
+
+                    aPromises.push(
+
+                        WorkflowAPI.fetchApproverEmailFromCostCenter(
+                            item.costCentre
+                        )
+
+                            .then(function (email) {
+
+                                if (email) {
+
+                                    aCollectedEmails.push(
+                                        email.trim()
+                                    );
+
+                                }
+
+                            })
+
+                            .catch(function () { })
+
+                    );
                 }
-            });
 
-            if (aUniqueCostCentres.length === 0) {
-                oModel.setProperty("/costCenterOwnerEmails", []);
-                oModel.setProperty("/costCenterOwner", "");
-                return;
-            }
+                // =========================
+                // INTERNAL ORDER
+                // =========================
+                if (
+                    item.internalOrder &&
+                    aInternalOrdersDone.indexOf(item.internalOrder) === -1
+                ) {
 
-            // Fetch emails for all unique cost centres in parallel
-            var aPromises = aUniqueCostCentres.map(function (sCC) {
-                return WorkflowAPI.fetchApproverEmailFromCostCenter(sCC)
-                    .then(function (email) {
-                        return email ? email.trim() : null;
-                    })
-                    .catch(function () { return null; });
-            });
+                    aInternalOrdersDone.push(
+                        item.internalOrder
+                    );
 
-            Promise.all(aPromises).then(function (aEmails) {
+                    var oOrder = aInternalOrders.find(
+                        function (ord) {
 
-                // Deduplicate and remove nulls
-                var aUnique = [];
-                aEmails.forEach(function (email) {
-                    if (email && aUnique.indexOf(email) === -1) {
-                        aUnique.push(email);
+                            return (
+                                ord.OrderNumber ===
+                                item.internalOrder
+                            );
+
+                        }
+                    );
+
+                    if (oOrder && oOrder.RespPersonID) {
+
+                        aPromises.push(
+
+                            WorkflowAPI.fetchResponsibleEmail({
+                                Resppersonid:
+                                    oOrder.RespPersonID
+                            })
+
+                                .then(function (email) {
+
+                                    if (email) {
+
+                                        aCollectedEmails.push(
+                                            email.trim()
+                                        );
+
+                                    }
+
+                                })
+
+                                .catch(function () { })
+
+                        );
                     }
+                }
+
+                // =========================
+                // WBS
+                // =========================
+                if (
+                    item.wbs &&
+                    aWBSDone.indexOf(item.wbs) === -1
+                ) {
+
+                    aWBSDone.push(item.wbs);
+
+                    var oWBS = aWBS.find(function (w) {
+
+                        return (
+                            w.WBSElement === item.wbs
+                        );
+
+                    });
+
+                    if (
+                        oWBS &&
+                        oWBS.ResponsiblePerson
+                    ) {
+
+                        aPromises.push(
+
+                            WorkflowAPI.fetchResponsibleEmail({
+                                Responsibleperson:
+                                    oWBS.ResponsiblePerson
+                            })
+
+                                .then(function (email) {
+
+                                    if (email) {
+
+                                        aCollectedEmails.push(
+                                            email.trim()
+                                        );
+
+                                    }
+
+                                })
+
+                                .catch(function () { })
+
+                        );
+                    }
+                }
+
+            });
+
+            Promise.all(aPromises)
+
+                .then(function () {
+
+                    var aUniqueEmails = [];
+
+                    aCollectedEmails.forEach(function (email) {
+
+                        if (
+                            email &&
+                            aUniqueEmails.indexOf(email) === -1
+                        ) {
+
+                            aUniqueEmails.push(email);
+
+                        }
+
+                    });
+
+                    console.log(
+                        "Final Responsible Emails:",
+                        aUniqueEmails
+                    );
+
+                    var aEmailObjects =
+                        aUniqueEmails.map(function (email) {
+
+                            return {
+                                email: email
+                            };
+
+                        });
+
+                    oModel.setProperty(
+                        "/costCenterOwnerEmails",
+                        aEmailObjects
+                    );
+
+                    if (aUniqueEmails.length === 1) {
+
+                        oModel.setProperty(
+                            "/costCenterOwner",
+                            aUniqueEmails[0]
+                        );
+
+                    } else {
+
+                        var sExisting =
+                            oModel.getProperty(
+                                "/costCenterOwner"
+                            );
+
+                        if (
+                            aUniqueEmails.indexOf(sExisting) === -1
+                        ) {
+
+                            oModel.setProperty(
+                                "/costCenterOwner",
+                                ""
+                            );
+
+                        }
+
+                    }
+
                 });
 
-                console.log("Cost Center Owner emails collected:", aUnique);
-
-                // IMPORTANT: Clear first to force UI refresh, then set new values
-                oModel.setProperty("/costCenterOwnerEmails", []);
-                oModel.setProperty("/costCenterOwner", "");
-
-                setTimeout(function () {
-                    var aEmailObjects = aUnique.map(function (e) { return { email: e }; });
-                    oModel.setProperty("/costCenterOwnerEmails", aEmailObjects);
-
-                    // Auto-select if only one unique email
-                    if (aUnique.length === 1) {
-                        oModel.setProperty("/costCenterOwner", aUnique[0]);
-                    }
-                    // If multiple, leave blank so user picks
-                }, 100);
-            });
         },
 
 
@@ -1984,6 +2214,45 @@ sap.ui.define([
             }
         },
 
+        onWBSOpen: function (oEvent) {
+
+            var oModel = this.getView().getModel();
+
+            if (oModel.getProperty("/wbsLoaded")) {
+                return;
+            }
+
+            var oComboBox = oEvent.getSource();
+
+            oComboBox.setBusy(true);
+
+            WorkflowAPI.fetchWBS()
+
+                .then(function (aWBS) {
+
+                    if (aWBS && aWBS.length > 0) {
+
+                        oModel.setProperty("/wbsElements", aWBS);
+
+                        oModel.setProperty("/wbsLoaded", true);
+
+                    }
+
+                })
+
+                .catch(function (err) {
+
+                    console.error("Error loading WBS:", err);
+
+                })
+
+                .finally(function () {
+
+                    oComboBox.setBusy(false);
+
+                });
+        },
+
         onSalesOrderOpen: function (oEvent) {
             var that = this;
             var oModel = this.getView().getModel();
@@ -2034,13 +2303,42 @@ sap.ui.define([
                     return that._fetchSegmentData(sSalesOrder);
                 })
                 .then(function (segmentData) {
-                    if (segmentData) {
-                        oModel.setProperty(sPath + "/SegmentProduct", segmentData.Product);
-                        oModel.setProperty(sPath + "/segmentShip", segmentData.ShipToParty);
-                        oModel.setProperty(sPath + "/segmentSold", segmentData.SoldToParty);
 
-                        MessageToast.show("Sales Order details auto-populated");
+                    if (segmentData) {
+
+                        oModel.setProperty(
+                            sPath + "/SegmentProduct",
+                            segmentData.SegmentProduct || ""
+                        );
+
+                        oModel.setProperty(
+                            sPath + "/segmentShip",
+                            segmentData.segmentShip || ""
+                        );
+
+                        oModel.setProperty(
+                            sPath + "/segmentSold",
+                            segmentData.segmentSold || ""
+                        );
+
+                    } else {
+
+                        oModel.setProperty(
+                            sPath + "/SegmentProduct",
+                            ""
+                        );
+
+                        oModel.setProperty(
+                            sPath + "/segmentShip",
+                            ""
+                        );
+
+                        oModel.setProperty(
+                            sPath + "/segmentSold",
+                            ""
+                        );
                     }
+
                 })
                 .catch(function (error) {
                     console.error("Error loading sales order details:", error);
@@ -2051,6 +2349,48 @@ sap.ui.define([
                 });
         },
 
+        _fetchSegmentData: function (salesOrder) {
+
+            if (!salesOrder) {
+                return Promise.resolve(null);
+            }
+
+            return WorkflowAPI.fetchSegmentData(salesOrder)
+                .then(function (segmentData) {
+
+                    if (!segmentData) {
+                        return null;
+                    }
+
+                    // ✅ IMPORTANT MAPPING FIX
+                    return {
+                        SegmentProduct:
+                            segmentData.Product || "",
+
+                        segmentShip:
+                            segmentData.ShipToParty || "",
+
+                        segmentSold:
+                            segmentData.SoldToParty || ""
+                    };
+
+                })
+                .catch(function (error) {
+
+                    console.error(
+                        "Error fetching segment data:",
+                        error
+                    );
+
+                    return null;
+                });
+        },
+
+        _fetchCurrencies: function () {
+
+            return WorkflowAPI.fetchCurrencies();
+
+        },
 
         _fetchBusinessPartners: function (searchTerm) {
             var oModel = this.getView().getModel();
@@ -2130,7 +2470,7 @@ sap.ui.define([
         },
 
         onSupplierSuggest: function (oEvent) {
-            var that = this;
+
             var sSuggestValue = oEvent.getParameter("suggestValue");
             var oSource = oEvent.getSource();
             var oModel = this.getView().getModel();
@@ -2147,26 +2487,60 @@ sap.ui.define([
 
             oSource.setBusy(true);
 
-            // Use WorkflowAPI.fetchBusinessPartners instead of this._fetchBusinessPartners
             WorkflowAPI.fetchBusinessPartners(sSuggestValue, sTypeOfParty)
+
                 .then(function (aPartners) {
+
+                    // APPLY FILTER ONLY FOR SUPPLIER
+                    if (sTypeOfParty === "Supplier") {
+
+                        var aAllowedSupplierGroups = [
+                            "GENL",
+                            "ZDPE",
+                            "ZDPV",
+                            "ZEXV",
+                            "ZTAX",
+                            "ZPI",
+                            "ZLOG"
+                        ];
+
+                        aPartners = aPartners.filter(function (partner) {
+
+                            return aAllowedSupplierGroups.includes(
+                                partner.SupplierAccountGroup
+                            );
+
+                        });
+
+                    }
+
                     oSource.destroySuggestionItems();
 
                     aPartners.forEach(function (partner) {
+
                         oSource.addSuggestionItem(
                             new sap.ui.core.Item({
                                 key: partner.key,
                                 text: partner.fullText
                             })
                         );
+
                     });
+
                 })
+
                 .catch(function (error) {
+
                     console.error("Error in suggestion:", error);
+
                 })
+
                 .finally(function () {
+
                     oSource.setBusy(false);
+
                 });
+
         },
 
         onSupplierSuggestionSelected: function (oEvent) {
@@ -2283,7 +2657,7 @@ sap.ui.define([
                 { id: "Copy_typeOfRequestSelect", name: "Type of request" },
                 { id: "Copy_requestTypeSelect", name: "Type of Accrual" },
                 { id: "Copy_typeOfPartySelect", name: "Type of Party" },
-                { id: "Copy_costCenterOwnerSelect", name: "Cost Center Owner" }
+
             ];
 
             var sTypeOfRequest = this.getView().getModel().getProperty("/typeOfRequest");
@@ -2448,6 +2822,10 @@ sap.ui.define([
         },
 
         _preparePayloadForProcessAutomation: function (oData, iStatus) {
+            var oModel = this.getView().getModel();
+
+            var totalExcludeTax = oModel.getProperty("/totalExcludeTax") || 0;
+            var totalUSD = oModel.getProperty("/totalUSD") || 0;
             var payload = {
                 definitionId: "us10.e84e1793trial.infineumaccrual4.accrual_Process",
                 context: {
@@ -2477,6 +2855,8 @@ sap.ui.define([
                         Supporting_Documents: oData.dmsFolderId
                             ? "spa-res:cmis:folderid:" + oData.dmsFolderId
                             : "",
+                        TotalAmount: totalUSD.toString(),
+                        Total_Exclude_Tax: totalExcludeTax.toString(),
                         Accrual_Table: oData.items.map(function (item, index) {
                             var cdIndicator = "";
                             if (item.creditDebit === "Debit") {
@@ -2504,7 +2884,9 @@ sap.ui.define([
                                 SalesOrderItemNumber: item.salesOrderItem || "",
                                 SegmentProduct: item.SegmentProduct || "",
                                 SegmentShiptoParty: item.segmentShip || "",
-                                SegmentSoldtoParty: item.segmentSold || ""
+                                SegmentSoldtoParty: item.segmentSold || "",
+                                materialNumber: item.materialNumber || "",
+                                countryRegionKey: item.countryRegionKey || ""
                             };
                         })
                     }
@@ -2595,11 +2977,11 @@ sap.ui.define([
                 });
         },
 
-
-        onSaveAsDraft: function () {
-
+        onSaveAsDraft: async function () {
+            await this._convertToUSD();
             var that = this;
             var bDocValid = this._validateSupportingDocuments();
+
 
             if (!this._validateHeaderFields() ||
                 !this._validateCutoffDate() ||
@@ -2856,7 +3238,9 @@ sap.ui.define([
                             salesOrders: aSalesOrders || [],
                             salesOrdersLoaded: bSalesOrdersLoaded || false,
                             currencies: aCurrencies || [],
-                            currenciesLoaded: bCurrenciesLoaded || false
+                            currenciesLoaded: bCurrenciesLoaded || false,
+                            materialNumber: "",
+                            countryRegionKey: "",
                         });
 
                         that.getView().setModel(oNewModel);
