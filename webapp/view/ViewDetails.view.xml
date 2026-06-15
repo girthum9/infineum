@@ -39,6 +39,12 @@
                             <Label id="_IDGenLabel16" text="Approved by"/>
                             <Text id="_IDGenText28" text="{/approvedBy}"/>
 
+                            <Label id="responsiblePersonLabel" text="Responsible Person"/>
+                            <Text id="responsiblePersonText" text="{/responsiblePerson}"/>
+
+                            <Label id="typeOfRequestLabel1" text="Type of Request"/>
+                            <Text id="typeOfRequestText" text="{/typeOfRequest}"/>
+
                             <Label id="_IDGenLabel17" text="Type of Accrual"/>
                             <Text id="_IDGenText29" text="{/requestType}"/>
 
@@ -93,6 +99,14 @@
                                     <Column id="_IDGenColumn26" width="11rem">
                                         <Text id="_IDGenText41" text="Trading Partner"/>
                                     </Column>
+
+                                    <Column id="materialNumberColumn" width="11rem">
+                                        <Text id="materialNumberText" text="Material Number"/>
+                                    </Column>
+
+                                    <Column id="countryRegionColumn" width="11rem">
+                                        <Text id="countryRegionText" text="Country/Region Key"/>
+                                    </Column>
                                     <Column id="_IDGenColumn27" width="11rem">
                                         <Text id="_IDGenText42" text="Sales Order Number"/>
                                     </Column>
@@ -124,6 +138,8 @@
                                             <Text id="_IDGenText55" text="{internalOrder}"/>
                                             <Text id="_IDGenText56" text="{wbs}"/>
                                             <Text id="_IDGenText57" text="{tradingPartner}"/>
+                                            <Text id="materialNumberValue" text="{materialNumber}"/>
+                                            <Text id="countryRegionValue" text="{countryRegionKey}"/>
                                             <Text id="_IDGenText58" text="{salesOrder}"/>
                                             <Text id="_IDGenText59" text="{salesOrderItem}"/>
                                             <Text id="_IDGenText60" text="{segmentProduct}"/>

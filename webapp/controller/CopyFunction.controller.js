@@ -147,7 +147,7 @@ sap.ui.define([
             return WorkflowAPI.fetchCompanyCodes()
                 .then(function (aCompanyCodes) {
 
-                    // ✅ Filter: remove nulls + restrict "Infineum USA Inc"
+                    //Filter: remove nulls + restrict "Infineum USA Inc"
                     var aFilteredCompanyCodes = aCompanyCodes.filter(function (item) {
                         return item.CompanyCodeName &&
                             item.CompanyCodeName !== "Infineum USA Inc";
@@ -253,7 +253,7 @@ sap.ui.define([
 
                         var aFinalGL = aGL;
 
-                        // ✅ ADD MISSING GL INTO DROPDOWN (CRITICAL FIX)
+                        //ADD MISSING GL INTO DROPDOWN (CRITICAL FIX)
                         if (sExistingGL) {
 
                             sExistingGL = sExistingGL.toString().trim();
@@ -270,7 +270,7 @@ sap.ui.define([
                             }
                         }
 
-                        // ✅ APPLY FINAL LIST
+                        //APPLY FINAL LIST
                         oModel.setProperty(sPath + "/filteredGLAccounts", aFinalGL);
                     });
 
@@ -759,21 +759,49 @@ sap.ui.define([
             var sCostCenterOwnerRaw = getValue(formData, "CostCenterOwner", "costCenterOwner", "");
 
             if (sCostCenterOwnerRaw) {
-                // Build the emails array from the comma-separated string
+
+                // Build email array
                 var aCCOwnerEmails = sCostCenterOwnerRaw.split(",")
-                    .map(function (e) { return e.trim(); })
-                    .filter(function (e) { return e !== ""; })
-                    .map(function (e) { return { email: e }; });
 
-                oModel.setProperty("/costCenterOwnerEmails", aCCOwnerEmails);
+                    .map(function (e) {
+                        return e.trim();
+                    })
 
-                // Auto-select first email as default
-                if (aCCOwnerEmails.length >= 1) {
-                    oModel.setProperty("/costCenterOwner", aCCOwnerEmails[0].email);
-                }
+                    .filter(function (e) {
+                        return e !== "";
+                    })
+
+                    .map(function (e) {
+                        return {
+                            email: e
+                        };
+                    });
+
+                // Set all emails to dropdown
+                oModel.setProperty(
+                    "/costCenterOwnerEmails",
+                    aCCOwnerEmails
+                );
+
+                // IMPORTANT:
+                // Store FULL comma separated value
+                // instead of first email
+                oModel.setProperty(
+                    "/costCenterOwner",
+                    sCostCenterOwnerRaw
+                );
+
             } else {
-                oModel.setProperty("/costCenterOwnerEmails", []);
-                oModel.setProperty("/costCenterOwner", "");
+
+                oModel.setProperty(
+                    "/costCenterOwnerEmails",
+                    []
+                );
+
+                oModel.setProperty(
+                    "/costCenterOwner",
+                    ""
+                );
             }
 
             // ───────────────── GL TYPE ─────────────────
@@ -814,7 +842,6 @@ sap.ui.define([
                             segmentShip: getValue(item, "segmentShiptoParty", "SegmentShiptoParty"),
                             segmentSold: getValue(item, "segmentSoldtoParty", "SegmentSoldtoParty"),
 
-                            // ✅ NEW
                             materialNumber: getValue(item, "materialNumber", "MaterialNumber"),
                             countryRegionKey: getValue(item, "countryRegionKey", "Country_Regionkey"),
 
@@ -1193,11 +1220,21 @@ sap.ui.define([
             // Finance approval logic
             var bFinanceApproval = this._calculateFinanceApproval(oData);
 
-            //APPLY AUTO CREDIT LOGIC
+            // APPLY AUTO CREDIT LOGIC
             var aProcessedItems = this._preparePayloadWithCreditLogic();
 
             var totalExcludeTax = oModel.getProperty("/totalExcludeTax") || 0;
             var totalUSD = oModel.getProperty("/totalUSD") || 0;
+
+            // ✅ FIX: Build comma-separated string from full emails array
+            var sCostCenterOwnerEmails = (oData.costCenterOwnerEmails || [])
+                .map(function (o) { return o.email; })
+                .join(",");
+
+            // Fallback: if array is empty but costCenterOwner string exists, use it
+            if (!sCostCenterOwnerEmails && oData.costCenterOwner) {
+                sCostCenterOwnerEmails = oData.costCenterOwner;
+            }
 
             var payload = {
                 status: "COMPLETED",
@@ -1208,7 +1245,8 @@ sap.ui.define([
                     nameYourAccrual: oData.nameAccrual || "",
                     requestedBy: oData.requestedBy || "",
                     approvedBy: oData.approvedBy || "",
-                    costCenterOwner: oData.costCenterOwner,
+                    costCenterOwner: sCostCenterOwnerEmails,      // ✅ FIXED
+                    CostCenterOwner: sCostCenterOwnerEmails,      // ✅ FIXED
                     accrualCutOffDate: oData.cutoffDate || "",
 
                     // TYPE OF ACCRUAL
@@ -1224,11 +1262,6 @@ sap.ui.define([
                     typeOfParty: oData.typeOfParty || "",
                     debitGLType: oData.debitGLType,
 
-                    //Cost Center Owner
-                    CostCenterOwner: (oData.costCenterOwnerEmails || [])
-                        .map(function (o) { return o.email; })
-                        .join(","),
-
                     status: iStatus.toString(),
                     financeApproval: bFinanceApproval,
 
@@ -1240,7 +1273,7 @@ sap.ui.define([
                     TotalAmount: totalUSD.toString(),
                     Total_Exclude_Tax: totalExcludeTax.toString(),
 
-                    //USE PROCESSED ITEMS (WITH AUTO CREDIT)
+                    // USE PROCESSED ITEMS (WITH AUTO CREDIT)
                     accrual_Table: aProcessedItems.map(function (item, index) {
 
                         var cdIndicator1 = "";
@@ -1640,59 +1673,47 @@ sap.ui.define([
 
         onDeleteRow: function (oEvent) {
 
-            var that = this;
-
             var oModel = this.getView().getModel();
 
-            var aItems = oModel.getProperty("/items");
+            var aItems = oModel.getProperty("/items") || [];
 
+            // Prevent deleting last row
             if (aItems.length === 1) {
 
                 MessageBox.warning(
-                    "At least one row is required."
+                    "At least one line item is required."
                 );
 
                 return;
             }
 
-            var oButton = oEvent.getSource();
-
-            var oContext = oButton.getBindingContext();
+            // Get selected row index
+            var oContext = oEvent.getSource()
+                .getBindingContext();
 
             var sPath = oContext.getPath();
 
             var iIndex = parseInt(
-                sPath.split("/").pop()
+                sPath.split("/")[2],
+                10
             );
 
-            MessageBox.confirm(
-                "Are you sure you want to delete this row?",
-                {
+            // Delete row
+            aItems.splice(iIndex, 1);
 
-                    onClose: function (sAction) {
+            // Update model
+            oModel.setProperty("/items", aItems);
 
-                        if (
-                            sAction === MessageBox.Action.OK
-                        ) {
+            // Refresh UI
+            oModel.refresh(true);
 
-                            aItems.splice(iIndex, 1);
+            // Recalculate totals
+            this._convertToUSD();
 
-                            oModel.setProperty(
-                                "/items",
-                                aItems
-                            );
-
-                            that._refreshResponsiblePersonEmails();
-
-                            MessageToast.show(
-                                "Row deleted"
-                            );
-                        }
-                    }
-                }
+            MessageToast.show(
+                "Line item deleted successfully"
             );
         },
-
         onSelectionChange: function (oEvent) {
             var oTable = this.byId("Copy_itemsTable");
             var aSelectedItems = oTable.getSelectedItems();
@@ -2653,7 +2674,7 @@ sap.ui.define([
                 { id: "Copy_cutoffDatePicker", name: "Accrual cut-off date" },
                 { id: "Copy_companyCodeInput", name: "Company code" },
                 { id: "Copy_requestedByInput", name: "Requested by" },
-                { id: "Copy_approvedByInput", name: "Approved by" },
+                //{ id: "Copy_approvedByInput", name: "Approved by" },
                 { id: "Copy_typeOfRequestSelect", name: "Type of request" },
                 { id: "Copy_requestTypeSelect", name: "Type of Accrual" },
                 { id: "Copy_typeOfPartySelect", name: "Type of Party" },
@@ -2687,7 +2708,12 @@ sap.ui.define([
                     oControl.setValueStateText("");
                 }
             }, this);
+            var oApprovedBy = this.byId("Copy_approvedByInput");
 
+            if (oApprovedBy) {
+                oApprovedBy.setValueState("None");
+                oApprovedBy.setValueStateText("");
+            }
             return bValid;
         },
 
@@ -2912,6 +2938,20 @@ sap.ui.define([
 
             var oModel = this.getView().getModel();
             var oData = oModel.getData();
+
+            // NEW VALIDATION
+            var totalUSD = parseFloat(
+                oModel.getProperty("/totalUSD")
+            ) || 0;
+
+            if (totalUSD < 5000) {
+
+                MessageBox.error(
+                    "Total USD amount must be greater than or equal to 5,000 USD for submission."
+                );
+
+                return;
+            }
 
             oData.typeOfRequest = oModel.getProperty("/typeOfRequest");
 

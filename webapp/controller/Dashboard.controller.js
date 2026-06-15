@@ -27,8 +27,97 @@ sap.ui.define([
 
       this.getView().setModel(oModel);
 
-      // Load data from API
-      this._loadDataFromAPI();
+      // Get logged in user email
+      this._getLoggedInUserEmail()
+
+        .then(function (sEmail) {
+
+          this._loggedInEmail = sEmail;
+
+          // Load API data
+          this._loadDataFromAPI();
+
+        }.bind(this));
+
+    },
+
+    _getLoggedInUserEmail: function () {
+      return new Promise(function (resolve) {
+
+        // ── 1. Try window.location.search (params BEFORE hash) ──
+        var oSearchParams = new URLSearchParams(window.location.search);
+        var sEmailFromSearch = oSearchParams.get("email");
+
+        if (sEmailFromSearch) {
+          console.log("EMAIL FROM URL SEARCH:", sEmailFromSearch);
+          resolve(sEmailFromSearch);
+          return;
+        }
+
+        // ── 2. Try inside hash fragment ──────────────────────────
+        var sHash = window.location.hash;
+        var sHashQuery = sHash.split("?")[1];
+        if (sHashQuery) {
+          var oHashParams = new URLSearchParams(sHashQuery);
+          var sEmailFromHash = oHashParams.get("email");
+          if (sEmailFromHash) {
+            console.log("EMAIL FROM HASH:", sEmailFromHash);
+            resolve(sEmailFromHash);
+            return;
+          }
+        }
+
+        // ── 3. Try SAP Fiori Launchpad UserInfo service ──────────
+        try {
+          var oUserInfo = sap.ushell &&
+            sap.ushell.Container &&
+            sap.ushell.Container.getService("UserInfo");
+
+          if (oUserInfo) {
+            var sEmail = oUserInfo.getEmail
+              ? oUserInfo.getEmail()
+              : oUserInfo.getId
+                ? oUserInfo.getId()
+                : "";
+
+            if (sEmail) {
+              console.log("EMAIL FROM USHELL:", sEmail);
+              resolve(sEmail);
+              return;
+            }
+          }
+        } catch (e) {
+          console.warn("UserInfo service error:", e);
+        }
+
+        console.warn("NO EMAIL FOUND — resolving empty");
+        resolve("");
+      });
+    },
+
+    _getRoleFromURL: function () {
+      // Check window.location.search (params BEFORE the hash)
+      var oSearchParams = new URLSearchParams(window.location.search);
+      var sRole = oSearchParams.get("role");
+      if (sRole) {
+        console.log("ROLE FROM URL SEARCH:", sRole);
+        return sRole;
+      }
+
+      // Fallback: check inside hash (index.html#/route?role=...)
+      var sHash = window.location.hash;
+      var sHashQuery = sHash.split("?")[1];
+      if (sHashQuery) {
+        var oHashParams = new URLSearchParams(sHashQuery);
+        var sHashRole = oHashParams.get("role");
+        if (sHashRole) {
+          console.log("ROLE FROM HASH:", sHashRole);
+          return sHashRole;
+        }
+      }
+
+      console.warn("NO ROLE FOUND IN URL");
+      return "";
     },
 
     onClearFilters: function () {
@@ -93,11 +182,37 @@ sap.ui.define([
 
       this.getView().setBusy(true);
 
-      WorkflowAPI.fetchAccrualRequests()
+      // ============================================
+      // GET ROLE FROM URL
+      // ============================================
+
+      var sRole = this._getRoleFromURL() || "";
+
+      // ============================================
+      // GET LOGIN EMAIL
+      // ============================================
+
+      var sEmail = this._loggedInEmail || "";
+
+      console.log("================================");
+      console.log("DASHBOARD LOAD STARTED");
+      console.log("ROLE :", sRole);
+      console.log("EMAIL :", sEmail);
+      console.log("================================");
+
+      WorkflowAPI.fetchAccrualRequests(
+        sEmail,
+        sRole
+      )
 
         .then(data => {
+
+          console.log("DATA RECEIVED FROM API :", data);
+
           this._processAPIData(data);
+
           this.getView().setBusy(false);
+
         })
 
         .catch(error => {
@@ -114,7 +229,8 @@ sap.ui.define([
           this.byId("requestsTable").setBusy(false);
 
           MessageBox.error(
-            "Failed to load data from server.\n\nError: " + error.message
+            "Failed to load data from server.\n\nError: " +
+            error.message
           );
 
         });
@@ -122,81 +238,221 @@ sap.ui.define([
     },
 
     _processAPIData: function (data) {
-      const aResults = data.d && data.d.results ? data.d.results : [];
 
-      // Transform API data to match our model
-      const aTransformedData = aResults.map(item => {
-        return {
-          instantId: item.Instanceid || "",
-          requestNo: item.Requestno || "",
-          documentNo: item.Documentno || "",
-          affiliate: item.Companyname || "",
-          nameAccrual: item.Accuralname || "",
-          companyCode: item.Companycode || "",
-          requestedBy: item.Requestedby || "",
-          approvedBy: item.Approvedby || "",
-          requestType: item.Requesttype || "",
-          typeOfParty: item.Partytype || "",
-          status: item.Status || "",
-          statusState: this._getStatusState(item.Status),
-          dateCreated: this._formatDate(item.Cdate),
-          lastUpdated: this._formatDate(item.Ldate),
-          lastUpdatedTimestamp: item.Ldate
-        };
-      });
+      // ============================================
+      // GET API RESULTS
+      // ============================================
 
-      // Sort by lastUpdatedTimestamp (newest first)
+      const aResults =
+        data.d && data.d.results
+          ? data.d.results
+          : [];
+
+      // ============================================
+      // GET ROLE
+      // ============================================
+
+      const sRole =
+        (this._getRoleFromURL() || "")
+          .toLowerCase()
+          .trim();
+
+      // ============================================
+      // GET LOGGED IN EMAIL
+      // ============================================
+
+      const sLoggedInEmail =
+        (this._loggedInEmail || "")
+          .toLowerCase()
+          .trim();
+
+      console.log("ROLE:", sRole);
+
+      console.log(
+        "LOGGED IN EMAIL:",
+        sLoggedInEmail
+      );
+
+      // ============================================
+      // APPLY REQUESTOR FILTER
+      // ============================================
+
+      let aFilteredResults = aResults;
+
+      if (sRole === "requestor") {
+
+        aFilteredResults =
+          aResults.filter(function (item) {
+
+            return (
+              (item.Requestedby || "")
+                .toLowerCase()
+                .trim() === sLoggedInEmail
+            );
+
+          });
+
+      }
+
+      console.log(
+        "FILTERED RESULTS:",
+        aFilteredResults
+      );
+
+      // ============================================
+      // TRANSFORM DATA
+      // ============================================
+
+      const aTransformedData =
+        aFilteredResults.map(item => {
+
+          return {
+            instantId: item.Instanceid || "",
+            requestNo: item.Requestno || "",
+            documentNo: item.Documentno || "",
+            affiliate: item.Companyname || "",
+            nameAccrual: item.Accuralname || "",
+            companyCode: item.Companycode || "",
+            requestedBy: item.Requestedby || "",
+            approvedBy: item.Approvedby || "",
+            requestType: item.Requesttype || "",
+            typeOfParty: item.Partytype || "",
+            status: item.Status || "",
+            statusState:
+              this._getStatusState(item.Status),
+            dateCreated:
+              this._formatDate(item.Cdate),
+            lastUpdated:
+              this._formatDate(item.Ldate),
+            lastUpdatedTimestamp:
+              item.Ldate
+          };
+
+        });
+
+      // ============================================
+      // SORT DATA
+      // ============================================
 
       aTransformedData.sort((a, b) => {
-        // Extract the numeric part from Request No (e.g., "AR-2025-0003" -> 3)
-        const getRequestNumber = (requestNo) => {
-          if (!requestNo) return 0;
-          // Split by '-' and get the last part
-          const parts = requestNo.split('-');
-          const numericPart = parts[parts.length - 1];
 
-          // Convert to integer
-          return parseInt(numericPart, 10) || 0;
-        };
+        const getRequestNumber =
+          (requestNo) => {
 
-        const numA = getRequestNumber(a.requestNo);
-        const numB = getRequestNumber(b.requestNo);
+            if (!requestNo) return 0;
 
-        // Sort descending (highest number first)
+            const parts =
+              requestNo.split('-');
+
+            const numericPart =
+              parts[parts.length - 1];
+
+            return parseInt(
+              numericPart,
+              10
+            ) || 0;
+
+          };
+
+        const numA =
+          getRequestNumber(a.requestNo);
+
+        const numB =
+          getRequestNumber(b.requestNo);
+
         return numB - numA;
+
       });
 
-      console.log("Sorted records by Request No (first 10):", aTransformedData.slice(0, 10).map(r => ({
-        requestNo: r.requestNo,
-        affiliate: r.affiliate,
-        status: r.status
-      })));
+      // ============================================
+      // KPI COUNTS
+      // ============================================
 
-      // Calculate KPI counts
-      const oKPICounts = this._calculateKPICounts(aTransformedData);
+      const oKPICounts =
+        this._calculateKPICounts(
+          aTransformedData
+        );
 
-      // Update model
-      const oModel = this.getView().getModel();
-      oModel.setProperty("/requests", aTransformedData);
-      oModel.setProperty("/totalrequest", aTransformedData.length);
-      oModel.setProperty("/draft", oKPICounts.draft);
-      oModel.setProperty("/rejected", oKPICounts.rejected);
-      oModel.setProperty("/completed", oKPICounts.completed);
-      oModel.setProperty("/pendingApproval", oKPICounts.pendingApproval);
+      // ============================================
+      // UPDATE MODEL
+      // ============================================
 
-      // Update last refresh timestamp
+      const oModel =
+        this.getView().getModel();
+
+      oModel.setProperty(
+        "/requests",
+        aTransformedData
+      );
+
+      oModel.setProperty(
+        "/totalrequest",
+        aTransformedData.length
+      );
+
+      oModel.setProperty(
+        "/draft",
+        oKPICounts.draft
+      );
+
+      oModel.setProperty(
+        "/rejected",
+        oKPICounts.rejected
+      );
+
+      oModel.setProperty(
+        "/completed",
+        oKPICounts.completed
+      );
+
+      oModel.setProperty(
+        "/pendingApproval",
+        oKPICounts.pendingApproval
+      );
+
+      // ============================================
+      // LAST REFRESH
+      // ============================================
+
       const oNow = new Date();
-      oModel.setProperty("/lastRefresh", oNow.toLocaleTimeString());
 
-      // Reset busy states
-      this.byId("TotalRequestTile").setState("Loaded");
-      this.byId("draftTile").setState("Loaded");
-      this.byId("pendingApprovalTile").setState("Loaded");
-      this.byId("rejectedTile").setState("Loaded");
-      this.byId("completedTile").setState("Loaded");
-      this.byId("requestsTable").setBusy(false);
+      oModel.setProperty(
+        "/lastRefresh",
+        oNow.toLocaleTimeString()
+      );
 
-      MessageToast.show("Data refreshed successfully: " + aTransformedData.length + " records");
+      // ============================================
+      // RESET UI STATES
+      // ============================================
+
+      this.byId("TotalRequestTile")
+        .setState("Loaded");
+
+      this.byId("draftTile")
+        .setState("Loaded");
+
+      this.byId("pendingApprovalTile")
+        .setState("Loaded");
+
+      this.byId("rejectedTile")
+        .setState("Loaded");
+
+      this.byId("completedTile")
+        .setState("Loaded");
+
+      this.byId("requestsTable")
+        .setBusy(false);
+
+      // ============================================
+      // SUCCESS MESSAGE
+      // ============================================
+
+      MessageToast.show(
+        "Data refreshed successfully: " +
+        aTransformedData.length +
+        " records"
+      );
+
     },
 
     _formatDate: function (sDate) {

@@ -35,8 +35,9 @@
 						<Input id="Copy_companyCodeInput" value="{/companyCode}" placeholder="Auto-populated based on affiliate" required="true" editable="false" enabled="true" />
 						<Label id="Copy_IDGenLabel4" text="Requested by" required="true" class="redAsterisk" />
 						<Input id="Copy_requestedByInput" value="{/requestedBy}" placeholder="Enter requester email" required="true" change=".onFieldChange" />
-						<Label id="Copy_IDGenLabel5" text="To be Approved by" required="true" class="redAsterisk" />
-						<ComboBox id="Copy_approvedByInput" value="{/approvedBy}" selectedKey="{/approvedBy}" required="true" editable="true" change=".onApprovedByChange" items="{/approvedByEmails}">
+						<Label id="Copy_IDGenLabel5" text="To be Approved by" required="false" />
+
+						<ComboBox id="Copy_approvedByInput" value="{/approvedBy}" selectedKey="{/approvedBy}" required="false" editable="true" change=".onApprovedByChange" items="{/approvedByEmails}">
 
 							<core:Item id="_IDGenItem9" key="{email}" text="{email}" />
 
@@ -47,13 +48,13 @@
 						</Select>
 						<!-- Type of Request (NEW FIELD) -->
 						<Label id="Copy_typeOfRequestLabel" text="Type of Request" required="true" class="redAsterisk" />
-						<Select id="Copy_typeOfRequestSelect" selectedKey="{/typeOfRequest}" change=".onTypeOfRequestChange">
+
+						<Select id="Copy_typeOfRequestSelect" selectedKey="{/typeOfRequest}" editable="false" enabled="true" class="noDropdownArrow">
 
 							<items>
-								<core:Item id="_IDGenItem22" key="" text="Select..." />
 								<core:Item id="_IDGenItem23" key="Accrual" text="Accrual" />
-								<!-- <core:Item id="_IDGenItem24" key="Reclass" text="Reclass" /> -->
 							</items>
+
 						</Select>
 						<Label id="Copy_IDGenLabel6" text="Type of Accrual" required="true" class="redAsterisk" visible="{= ${/typeOfRequest} !== 'Reclass' }" />
 
@@ -260,8 +261,6 @@
 										<Input id="Copy_segmentShipInput" value="{segmentShip}" placeholder="Ship to Party" editable="false" enabled="true" />
 										<!-- Segment-Sold to Party - AUTO-POPULATED INPUT -->
 										<Input id="Copy_segmentSoldInput" value="{segmentSold}" placeholder="Sold to Party" editable="false" enabled="true" />
-										<!-- Add Credit Line Item -->
-										<Button id="Copy_IDGenButton4" icon="sap-icon://add" type="Accept" tooltip="Add Credit Line" press=".onAddCreditFromRowCopy" />
 										<!-- Delete Button -->
 										<Button id="Copy_IDGenButton3" icon="sap-icon://delete" type="Reject" press=".onDeleteRow" />
 									</cells>

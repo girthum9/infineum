@@ -111,6 +111,22 @@ sap.ui.define([
                 approvedBy: pick(oSrc, "approvedBy", oSrc, "ApprovedBy",
                     oAct2, "Approvedby", oAct1, "Approvedby"),
 
+
+                responsiblePerson: pick(
+                    oSrc,
+                    "CostCenterOwner",
+                    oSrc,
+                    "costCenterOwner"
+                ),
+
+
+                typeOfRequest: pick(
+                    oSrc,
+                    "requestType",
+                    oSrc,
+                    "Requesttype"
+                ),
+
                 requestType: pick(oSrc, "typeOfRequest", oSrc, "TypeofRequest",
                     oAct2, "Requesttype", oAct1, "Requesttype"),
 
@@ -255,62 +271,44 @@ sap.ui.define([
 
         // ─── TABLE TRANSFORM ──────────────────────────────────────────────────────────
 
-       _transformTable: function (aSrc) {
+        _transformTable: function (aSrc) {
 
-    if (!aSrc || !aSrc.length) {
-        return [];
-    }
+            if (!aSrc || !aSrc.length) {
+                return [];
+            }
 
-    // STEP 1: map rows
-    var aMapped = aSrc.map(function (row) {
+            // STEP 1: map rows
+            var aMapped = aSrc.map(function (row) {
 
-        return {
-            supplier: row.supplierCustomer || row.SupplierCustomer || "",
-            description: row.description || row.Description || "",
-            currency: row.currency || row.Currency || "",
-            excludeTax: row.excludeTax || row.ExcludeTax || "",
-            glAccount: row.gLAccountCode || row.GLAccountCode || "",
-            creditDebit: row.creditDebitIndicator || row.CreditDebitIndicator || "",
-            poNumber: row.purchaseOrderNumber || row.PurchaseOrderNumber || "",
-            poLineItem: row.purchaseOrderLineItem || row.PurchaseOrderLineItem || "",
-            costCentre: row.costCentre || row.CostCentre || "",
-            internalOrder: row.internalOrder || row.InternalOrder || "",
-            wbs: row.wBS || row.WBS || "",
-            tradingPartner: row.tradingPartner || row.TradingPartner || "",
-            salesOrder: row.salesOrderNumber || row.SalesOrderNumber || "",
-            salesOrderItem: row.salesOrderItemNumber || row.SalesOrderItemNumber || "",
-            segmentProduct: row.segmentProduct || row.SegmentProduct || "",
-            segmentShip: row.segmentShiptoParty || row.SegmentShiptoParty || "",
-            segmentSold: row.segmentSoldtoParty || row.SegmentSoldtoParty || ""
-        };
+                return {
+                    supplier: row.supplierCustomer || row.SupplierCustomer || "",
+                    description: row.description || row.Description || "",
+                    currency: row.currency || row.Currency || "",
+                    excludeTax: row.excludeTax || row.ExcludeTax || "",
+                    glAccount: row.gLAccountCode || row.GLAccountCode || "",
+                    creditDebit: row.creditDebitIndicator || row.CreditDebitIndicator || "",
+                    poNumber: row.purchaseOrderNumber || row.PurchaseOrderNumber || "",
+                    poLineItem: row.purchaseOrderLineItem || row.PurchaseOrderLineItem || "",
+                    costCentre: row.costCentre || row.CostCentre || "",
+                    internalOrder: row.internalOrder || row.InternalOrder || "",
+                    wbs: row.wBS || row.WBS || "",
+                    tradingPartner: row.tradingPartner || row.TradingPartner || "",
+                    salesOrder: row.salesOrderNumber || row.SalesOrderNumber || "",
+                    salesOrderItem: row.salesOrderItemNumber || row.SalesOrderItemNumber || "",
+                    segmentProduct: row.segmentProduct || row.SegmentProduct || "",
+                    segmentShip: row.segmentShiptoParty || row.SegmentShiptoParty || "",
+                    segmentSold: row.segmentSoldtoParty || row.SegmentSoldtoParty || "",
+                    materialNumber: row.materialNumber || row.MaterialNumber || "",
+                    countryRegionKey: row.countryRegionKey || row.Country_Regionkey || ""
+                };
 
-    });
+            });
 
-    // STEP 2: split debit / credit
-    var aDebit = aMapped.filter(function (item) {
-        return item.creditDebit === "Debit";
-    });
+// STEP 2:
+// return all line items as-is
+return aMapped;
 
-    var aCredit = aMapped.filter(function (item) {
-        return item.creditDebit === "Credit";
-    });
-
-    // STEP 3:
-    // only credit exists
-    if (aDebit.length === 0) {
-        return aCredit;
-    }
-
-    // only debit exists
-    if (aCredit.length === 0) {
-        return aDebit;
-    }
-
-    // debit + credit exists
-    // return all debit + first credit
-    return aDebit.concat(aCredit[0]);
-
-},
+        },
 
         // ─── STATUS HELPERS ───────────────────────────────────────────────────────────
 

@@ -234,7 +234,6 @@ sap.ui.define([
             if (!currency || !total) {
                 oModel.setProperty("/totalUSD", 0.00);
 
-                // ✅ also clear approver
                 this._updateApprovedBy();
 
                 return Promise.resolve(0);
@@ -244,14 +243,13 @@ sap.ui.define([
                 var rounded = parseFloat(total.toFixed(2));
                 oModel.setProperty("/totalUSD", rounded);
 
-                // ✅ update approver
                 this._updateApprovedBy();
 
                 return Promise.resolve(rounded);
             }
 
             return WorkflowAPI.fetchExchangeRate(currency, "USD")
-                .then((res) => {   // ✅ arrow function FIX
+                .then((res) => {  
 
                     if (!res || !res.rate) {
                         throw new Error("Exchange rate not found");
@@ -259,11 +257,9 @@ sap.ui.define([
 
                     var totalUSD;
 
-                    // ✅ INDIRECT → divide
                     if (res.quotation === "I") {
                         totalUSD = total / res.rate;
                     }
-                    // ✅ DIRECT → multiply
                     else {
                         totalUSD = total * res.rate;
                     }
@@ -272,18 +268,16 @@ sap.ui.define([
 
                     oModel.setProperty("/totalUSD", totalUSD);
 
-                    // ✅ NOW WORKS
                     this._updateApprovedBy();
 
                     return totalUSD;
                 })
-                .catch((err) => {   // ✅ arrow function here also
+                .catch((err) => {  
 
                     console.error("Conversion error:", err);
 
                     oModel.setProperty("/totalUSD", 0.00);
 
-                    // ✅ clear approver if conversion fails
                     this._updateApprovedBy();
                 });
         },
@@ -525,25 +519,49 @@ sap.ui.define([
             var sCostCenterOwnerRaw = getValue(formData, "CostCenterOwner", "costCenterOwner", "");
 
             if (sCostCenterOwnerRaw) {
-                // Build the emails array from the comma-separated string
+
+                // Build email array
                 var aCCOwnerEmails = sCostCenterOwnerRaw.split(",")
-                    .map(function (e) { return e.trim(); })
-                    .filter(function (e) { return e !== ""; })
-                    .map(function (e) { return { email: e }; });
 
-                oModel.setProperty("/costCenterOwnerEmails", aCCOwnerEmails);
+                    .map(function (e) {
+                        return e.trim();
+                    })
 
-                // Auto-select if only one, otherwise set first as default
-                if (aCCOwnerEmails.length === 1) {
-                    oModel.setProperty("/costCenterOwner", aCCOwnerEmails[0].email);
-                } else {
-                    // Keep the full string as selected key won't match — 
-                    // set first email as selected by default
-                    oModel.setProperty("/costCenterOwner", aCCOwnerEmails[0].email);
-                }
+                    .filter(function (e) {
+                        return e !== "";
+                    })
+
+                    .map(function (e) {
+                        return {
+                            email: e
+                        };
+                    });
+
+                // Set all emails to dropdown
+                oModel.setProperty(
+                    "/costCenterOwnerEmails",
+                    aCCOwnerEmails
+                );
+
+                // IMPORTANT:
+                // Store FULL comma separated value
+                // instead of first email
+                oModel.setProperty(
+                    "/costCenterOwner",
+                    sCostCenterOwnerRaw
+                );
+
             } else {
-                oModel.setProperty("/costCenterOwnerEmails", []);
-                oModel.setProperty("/costCenterOwner", "");
+
+                oModel.setProperty(
+                    "/costCenterOwnerEmails",
+                    []
+                );
+
+                oModel.setProperty(
+                    "/costCenterOwner",
+                    ""
+                );
             }
             oModel.setProperty("/companyCode", sCompanyCode);
             oModel.setProperty("/csNumber", getValue(formData, "csNumber", "CSNumber", "csNumber"));
@@ -612,7 +630,7 @@ sap.ui.define([
                             segmentShip: getValue(item, "segmentShiptoParty", "SegmentShiptoParty"),
                             segmentSold: getValue(item, "segmentSoldtoParty", "SegmentSoldtoParty"),
 
-                            // ✅ NEW
+
                             materialNumber: getValue(item, "materialNumber", "MaterialNumber"),
                             countryRegionKey: getValue(item, "countryRegionKey", "Country_Regionkey"),
 
@@ -862,7 +880,6 @@ sap.ui.define([
                         oModel.setProperty(sPath + "/poLineItem", firstItem.PurchaseOrderItem);
                         oModel.setProperty(sPath + "/description", firstItem.PurchaseOrderItemText);
                         oModel.setProperty(sPath + "/excludeTax", firstItem.NetAmount);
-                        // ✅ NEW: map Material
                         oModel.setProperty(sPath + "/materialNumber", firstItem.Material || "");
                         that._convertToUSD();
                         oModel.setProperty(sPath + "/poNetAmount", firstItem.NetAmount);
@@ -902,7 +919,6 @@ sap.ui.define([
                     oModel.setProperty(sPath + "/excludeTax", selectedPOItem.NetAmount);
                     this._convertToUSD();
                     oModel.setProperty(sPath + "/poNetAmount", selectedPOItem.NetAmount);
-                    // ✅ NEW: map Material
                     oModel.setProperty(sPath + "/materialNumber", selectedPOItem.Material || "");
                     this._validateExcludeTaxValue(sPath, selectedPOItem.NetAmount);
                     MessageToast.show("Description and Amount updated");
@@ -1946,16 +1962,10 @@ sap.ui.define([
             // Threshold validation based on TOTAL USD
             var totalUSD = oModel.getProperty("/totalUSD") || 0;
 
-            var companyCode = oModel.getProperty("/companyCode");
-
-            var threshold = this._getThreshold(companyCode);
-
-            if (totalUSD < threshold) {
+            if (totalUSD < 5000) {
 
                 MessageBox.error(
-                    "Total USD amount must be greater than " +
-                    threshold.toLocaleString() +
-                    " USD for submission."
+                    "Total USD amount must be greater than or equal to 5,000 USD for submission."
                 );
 
                 return;
@@ -2621,7 +2631,7 @@ sap.ui.define([
                 { id: "cutoffDatePicker", name: "Accrual cut-off date" },
                 { id: "companyCodeInput", name: "Company code" },
                 { id: "requestedByInput", name: "Requested by" },
-                { id: "approvedByInput", name: "Approved by" },
+                //{ id: "approvedByInput", name: "Approved by" },
                 { id: "typeOfRequestSelect", name: "Type of Request" },
                 { id: "accrualTypeSelect", name: "Type of Accrual" },
                 { id: "typeOfPartySelect", name: "Type of Party" },
@@ -2962,6 +2972,15 @@ sap.ui.define([
             var totalExcludeTax = oModel.getProperty("/totalExcludeTax") || 0;
             var totalUSD = oModel.getProperty("/totalUSD") || 0;
 
+            var sCostCenterOwnerEmails = (oData.costCenterOwnerEmails || [])
+                .map(function (o) { return o.email; })
+                .join(",");
+
+            // Fallback: if array is empty but costCenterOwner string exists, use it
+            if (!sCostCenterOwnerEmails && oData.costCenterOwner) {
+                sCostCenterOwnerEmails = oData.costCenterOwner;
+            }
+
             return {
                 status: "COMPLETED",
                 decision: "submit",
@@ -2971,29 +2990,25 @@ sap.ui.define([
                     nameYourAccrual: oData.nameAccrual || "",
                     requestedBy: oData.requestedBy || "",
                     approvedBy: oData.approvedBy || "",
-                    costCenterOwner: oData.costCenterOwner,
+                    costCenterOwner: sCostCenterOwnerEmails,      
+                    CostCenterOwner: sCostCenterOwnerEmails,      
                     accrualCutOffDate: oData.cutoffDate || "",
                     TypeofRequest: oData.accrualType || "",
                     typeOfRequest: oData.accrualType || "",
                     typeOfAccrual: oData.accrualType || "",
-                    Requesttype: oData.typeOfRequest || "",
-                    requestType: oData.typeOfRequest || "",
-                    typeOfRequest_1: oData.typeOfRequest || "",
+                    Requesttype: oData.typeOfRequest || "Accrual",
+                    requestType: oData.typeOfRequest || "Accrual",
+                    typeOfRequest_1: oData.typeOfRequest || "Accrual",
                     typeOfParty: oData.typeOfParty || "",
                     debitGLType: oData.debitGLType || "",
-                    CostCenterOwner: (oData.costCenterOwnerEmails || [])
-                        .map(function (o) { return o.email; })
-                        .join(","),
                     status: iStatus.toString(),
                     financeApproval: this._calculateFinanceApproval(oData),
                     supportingDocuments: oData.dmsFolderId
                         ? "spa-res:cmis:folderid:" + oData.dmsFolderId
                         : "",
                     Lastupdateddate: this._getCurrentDateFormatted(),
-                    // ✅ NEW: total fields
                     TotalAmount: totalUSD.toString(),
                     Total_Exclude_Tax: totalExcludeTax.toString(),
-
                     accrual_Table: oData.items.map(function (item, index) {
                         var cdIndicator = item.creditDebit === "Debit" ? "D" :
                             item.creditDebit === "Credit" ? "C" : "";
@@ -3017,7 +3032,6 @@ sap.ui.define([
                             segmentProduct: item.SegmentProduct || "",
                             segmentShiptoParty: item.segmentShip || "",
                             segmentSoldtoParty: item.segmentSold || "",
-                            // NEW
                             materialNumber: item.materialNumber || "",
                             countryRegionKey: item.countryRegionKey || ""
                         };

@@ -60,12 +60,20 @@
                         <Label id="_IDGenLabel4" text="Requested by" required="true" class="redAsterisk" />
                         <Input id="requestedByInput" value="{/requestedBy}" placeholder="Enter requester email" required="true" change=".onFieldChange" />
 
-                        <Label id="_IDGenLabel5" text="To be Approved by" required="true" class="redAsterisk" />
-                        <ComboBox id="approvedByInput" value="{/approvedBy}" selectedKey="{/approvedBy}" required="true" editable="true" change=".onApprovedByChange" items="{/approvedByEmails}">
+<Label id="_IDGenLabel5" text="To be Approved by" required="false" />
 
-                            <core:Item id="_IDGenItem5" key="{email}" text="{email}" />
+<ComboBox id="approvedByInput"
+    value="{/approvedBy}"
+    selectedKey="{/approvedBy}"
+    required="false"
+    editable="false"
+    enabled="false"
+    change=".onApprovedByChange"
+    items="{/approvedByEmails}">
 
-                        </ComboBox>
+    <core:Item id="_IDGenItem5" key="{email}" text="{email}" />
+
+</ComboBox>
 
                         <Label id="costCenterOwnerLabel" text="Responsible Person" required="false" />
                         <Select id="costCenterOwnerSelect" selectedKey="{/costCenterOwner}" required="false" change=".onCostCenterOwnerChange" items="{/costCenterOwnerEmails}">
@@ -73,13 +81,13 @@
                         </Select>
 
                         <Label id="typeOfRequestLabel" text="Type of Request" required="true" class="redAsterisk" />
-                        <Select id="typeOfRequestSelect" selectedKey="{/typeOfRequest}" required="true" change=".onFieldChange">
+
+                        <Select id="typeOfRequestSelect" selectedKey="{/typeOfRequest}" required="true" editable="false" enabled="true" class="noDropdownArrow">
 
                             <items>
-                                <core:Item id="_IDGenItem18" key="" text="Select..." />
                                 <core:Item id="_IDGenItem19" key="Accrual" text="Accrual" />
-                                <!-- <core:Item id="_IDGenItem21" key="Reclass" text="Reclass" /> -->
                             </items>
+
                         </Select>
 
                         <Label id="_IDGenLabel6" text="Type of Accrual" required="true" class="redAsterisk" visible="{= ${/typeOfRequest} !== 'Reclass' }" />

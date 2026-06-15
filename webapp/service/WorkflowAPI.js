@@ -52,25 +52,71 @@ sap.ui.define([
 
         // ───────────── DASHBOARD APIs ─────────────
 
-        fetchAccrualRequests: function () {
+        fetchAccrualRequests: function (sEmail, sRole) {
 
             var cfg = this._dashboardConfig;
 
-            return fetch(cfg.accrualApiEndpoint, {
+            var sUrl = cfg.accrualApiEndpoint;
+
+            console.log("================================");
+            console.log("FETCH API CALLED");
+            console.log("ROLE RECEIVED :", sRole);
+            console.log("EMAIL RECEIVED :", sEmail);
+            console.log("BASE URL :", sUrl);
+            console.log("================================");
+
+            // ============================================
+            // APPLY FILTER FOR REQUESTOR
+            // ============================================
+
+            if (
+                sRole &&
+                sRole.toLowerCase().trim() === "requestor" &&
+                sEmail
+            ) {
+
+                sUrl +=
+                    "?$filter=Requestedby eq '" +
+                    sEmail +
+                    "'";
+
+            }
+
+            console.log("FINAL API URL :", sUrl);
+
+            return fetch(sUrl, {
+
                 method: "GET",
+
                 headers: {
-                    "Authorization": this._getAuthHeader(cfg.username, cfg.password),
+
+                    "Authorization": this._getAuthHeader(
+                        cfg.username,
+                        cfg.password
+                    ),
+
                     "Accept": "application/json"
+
                 }
+
             })
+
                 .then(function (response) {
 
-                    if (!response.ok) {
-                        throw new Error("Failed to fetch accrual requests: " + response.status);
-                    }
+                    console.log("API STATUS :", response.status);
 
                     return response.json();
+
+                })
+
+                .then(function (data) {
+
+                    console.log("FULL API RESPONSE :", data);
+
+                    return data;
+
                 });
+
         },
 
         recallWorkflowInstance: function (instanceId) {
@@ -563,54 +609,54 @@ sap.ui.define([
                 })
                 .catch(function () { return null; });
         },
-        
+
         fetchResponsibleEmail: function (payload) {
 
-    var cfg = this._responsibleEmailConfig;
+            var cfg = this._responsibleEmailConfig;
 
-    return fetch(cfg.apiEndpoint, {
-        method: "POST",
-        headers: {
-            "Content-Type": "application/json"
+            return fetch(cfg.apiEndpoint, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify(payload)
+            })
+                .then(function (response) {
+
+                    if (!response.ok) {
+                        throw new Error(
+                            "GET_ResponsibleEmail failed: " + response.status
+                        );
+                    }
+
+                    return response.text();
+                })
+                .then(function (responseText) {
+
+                    // Parse XML response
+                    var parser = new DOMParser();
+                    var xmlDoc = parser.parseFromString(responseText, "application/xml");
+
+                    var emailNode =
+                        xmlDoc.getElementsByTagNameNS(
+                            "http://schemas.microsoft.com/ado/2007/08/dataservices",
+                            "Responsibleemail"
+                        )[0] ||
+                        xmlDoc.getElementsByTagName("d:Responsibleemail")[0] ||
+                        xmlDoc.getElementsByTagName("Responsibleemail")[0];
+
+                    if (emailNode && emailNode.textContent) {
+                        return emailNode.textContent.trim();
+                    }
+
+                    console.warn(
+                        "Responsibleemail not found in response",
+                        responseText
+                    );
+
+                    return null;
+                });
         },
-        body: JSON.stringify(payload)
-    })
-        .then(function (response) {
-
-            if (!response.ok) {
-                throw new Error(
-                    "GET_ResponsibleEmail failed: " + response.status
-                );
-            }
-
-            return response.text();
-        })
-        .then(function (responseText) {
-
-            // Parse XML response
-            var parser = new DOMParser();
-            var xmlDoc = parser.parseFromString(responseText, "application/xml");
-
-            var emailNode =
-                xmlDoc.getElementsByTagNameNS(
-                    "http://schemas.microsoft.com/ado/2007/08/dataservices",
-                    "Responsibleemail"
-                )[0] ||
-                xmlDoc.getElementsByTagName("d:Responsibleemail")[0] ||
-                xmlDoc.getElementsByTagName("Responsibleemail")[0];
-
-            if (emailNode && emailNode.textContent) {
-                return emailNode.textContent.trim();
-            }
-
-            console.warn(
-                "Responsibleemail not found in response",
-                responseText
-            );
-
-            return null;
-        });
-},
         fetchInternalOrders: function (companyCode) {
             if (!companyCode) return Promise.resolve([]);
             var url = this._internalOrderConfig.apiEndpoint + "?$filter=CompanyCode eq '" + companyCode + "'";
@@ -651,31 +697,31 @@ sap.ui.define([
                     return data.d.results.map(function (po) { return { PurchaseOrder: po.PurchaseOrder || "" }; });
                 });
         },
-fetchPurchaseOrderItems: function (purchaseOrder) {
-    if (!purchaseOrder) return Promise.resolve([]);
-    var url = this._purchaseOrderItemConfig.apiEndpoint + "?$filter=PurchaseOrder eq '" + purchaseOrder + "'";
-    return fetch(url, {
-        method: "GET",
-        headers: {
-            "Authorization": this._getAuthHeader(this._purchaseOrderItemConfig.username, this._purchaseOrderItemConfig.password),
-            "Accept": "application/json"
-        }
-    })
-        .then(function (r) { if (!r.ok) throw new Error("Failed: " + r.status); return r.json(); })
-        .then(function (data) {
-            if (!data.d || !data.d.results) return [];
-            return data.d.results.map(function (item) {
-                return {
-                    PurchaseOrderItem: item.PurchaseOrderItem || "",
-                    PurchaseOrderItemText: item.PurchaseOrderItemText || "",
-                    NetAmount: item.NetAmount || "0.00",
-                    // ✅ NEW
-                    Material: item.Material || "",
-                    displayText: (item.PurchaseOrderItem || "") + (item.PurchaseOrderItemText ? " - " + item.PurchaseOrderItemText : "")
-                };
-            });
-        });
-},
+        fetchPurchaseOrderItems: function (purchaseOrder) {
+            if (!purchaseOrder) return Promise.resolve([]);
+            var url = this._purchaseOrderItemConfig.apiEndpoint + "?$filter=PurchaseOrder eq '" + purchaseOrder + "'";
+            return fetch(url, {
+                method: "GET",
+                headers: {
+                    "Authorization": this._getAuthHeader(this._purchaseOrderItemConfig.username, this._purchaseOrderItemConfig.password),
+                    "Accept": "application/json"
+                }
+            })
+                .then(function (r) { if (!r.ok) throw new Error("Failed: " + r.status); return r.json(); })
+                .then(function (data) {
+                    if (!data.d || !data.d.results) return [];
+                    return data.d.results.map(function (item) {
+                        return {
+                            PurchaseOrderItem: item.PurchaseOrderItem || "",
+                            PurchaseOrderItemText: item.PurchaseOrderItemText || "",
+                            NetAmount: item.NetAmount || "0.00",
+                            // ✅ NEW
+                            Material: item.Material || "",
+                            displayText: (item.PurchaseOrderItem || "") + (item.PurchaseOrderItemText ? " - " + item.PurchaseOrderItemText : "")
+                        };
+                    });
+                });
+        },
 
         fetchSalesOrders: function () {
             return fetch(this._salesOrderConfig.apiEndpoint + "?$select=SalesOrder&$top=100", {

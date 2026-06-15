@@ -81,9 +81,10 @@ sap.ui.define([
             internalOrderPath: "/FCO_INTERNAL_ORDER_SRV/InternalOrderSet",
             salesOrderPath: "/API_SALES_ORDER_SRV/A_SalesOrderItem",
             currencyPath: "/UI_CURRENCYEXCHANGERATE/I_Currency?$top=200",
+            currencyExchangeRatePath: "/UI_CURRENCYEXCHANGERATE/C_CurrencyExchangeRateTP",
             segmentPath: "/MD_PRODUCT_OP_SRV/C_ProductObjPgSalesOrder",
             wbsPath: "/PS_WBSELEMENT_OVW_SRV/I_WBSElementValueHelp",
-            responsibleEmailPath: "/ZBTP_HYPERAUTO_SERVICE_SRV/ResponsibleEmail001Set",
+            responsibleEmailPath: "/http/GET_ResponsibleEmail1",
 
             dashboard: {
                 accrualApiPath: "/ZBTP_HYPERAUTO_SERVICE_SRV/AccrualsSet",
