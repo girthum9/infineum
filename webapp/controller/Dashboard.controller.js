@@ -648,6 +648,21 @@ sap.ui.define([
             }.bind(this)
           })
         );
+      } else if (sStatusLower.includes("fail") || sStatusLower.includes("error")) {
+        aButtons.push(
+          new Button({
+            text: "Workflow Logs",
+            press: function () {
+              this._navigateToPage("WorkflowLogs", sInstantId);
+            }.bind(this)
+          }),
+          new Button({
+            text: "View Details",
+            press: function () {
+              this._navigateToPage("ViewDetails", sInstantId);
+            }.bind(this)
+          })
+        );
       } else {
         aButtons.push(
           new Button({

@@ -125,17 +125,17 @@ sap.ui.define([
 
                 // UPDATED
                 "SGC1": [
-                    "KiatLi.Lee@Infineum.com",
+                    "KiatLi.Lee@infineum.com",
                     "Valerie.Ong@Infineum.com"
                 ],
 
                 "JPC1": [
-                    "KiatLi.Lee@Infineum.com",
+                    "KiatLi.Lee@infineum.com",
                     "Valerie.Ong@Infineum.com"
                 ],
 
                 "KRC1": [
-                    "KiatLi.Lee@Infineum.com",
+                    "KiatLi.Lee@infineum.com",
                     "Valerie.Ong@Infineum.com"
                 ],
 
